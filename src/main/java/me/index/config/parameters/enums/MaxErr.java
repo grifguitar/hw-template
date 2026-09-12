@@ -1,6 +1,7 @@
 package me.index.config.parameters.enums;
 
-import java.util.Arrays;
+import me.index.config.Config;
+
 import java.util.Optional;
 import java.util.Properties;
 
@@ -16,18 +17,7 @@ public enum MaxErr {
         this.value = value;
     }
 
-    public static Optional<MaxErr> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        String name = value.trim();
-        for (MaxErr candidate : values()) {
-            if (candidate.name().equals(name)) {
-                return Optional.of(candidate);
-            }
-        }
-        throw new IllegalArgumentException("property '" + KEY + "': unknown value '" + name
-                + "'; allowed values: " + Arrays.toString(values()));
+    public static Optional<MaxErr> parse(Properties p) {
+        return Config.parseEnum(p, KEY, values());
     }
 }

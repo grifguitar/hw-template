@@ -1,5 +1,7 @@
 package me.index.config.parameters.records;
 
+import me.index.config.Config;
+
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
@@ -14,9 +16,8 @@ public record PlotPath(String value) {
         }
     }
 
-    public static Optional<PlotPath> read(Properties p) {
-        String value = p.getProperty(KEY);
-        return value == null ? Optional.empty() : Optional.of(new PlotPath(value.trim()));
+    public static Optional<PlotPath> parse(Properties p) {
+        return Config.parseRecord(p, KEY, "a path", PlotPath::new);
     }
 
     public Path path() {

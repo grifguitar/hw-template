@@ -1,5 +1,7 @@
 package me.index.config.parameters.records;
 
+import me.index.config.Config;
+
 import java.util.Optional;
 import java.util.Properties;
 
@@ -13,16 +15,7 @@ public record BatchSize(int value) {
         }
     }
 
-    public static Optional<BatchSize> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(new BatchSize(Integer.parseInt(value.trim())));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                    "property '" + KEY + "': expected a positive int, got '" + value.trim() + "'", e);
-        }
+    public static Optional<BatchSize> parse(Properties p) {
+        return Config.parseRecord(p, KEY, "a positive int", text -> new BatchSize(Integer.parseInt(text)));
     }
 }

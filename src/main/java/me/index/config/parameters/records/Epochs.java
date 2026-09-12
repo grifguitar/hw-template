@@ -1,5 +1,7 @@
 package me.index.config.parameters.records;
 
+import me.index.config.Config;
+
 import java.util.Optional;
 import java.util.Properties;
 
@@ -13,16 +15,7 @@ public record Epochs(int value) {
         }
     }
 
-    public static Optional<Epochs> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(new Epochs(Integer.parseInt(value.trim())));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                    "property '" + KEY + "': expected a positive int, got '" + value.trim() + "'", e);
-        }
+    public static Optional<Epochs> parse(Properties p) {
+        return Config.parseRecord(p, KEY, "a positive int", text -> new Epochs(Integer.parseInt(text)));
     }
 }

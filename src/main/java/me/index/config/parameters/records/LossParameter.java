@@ -1,5 +1,6 @@
 package me.index.config.parameters.records;
 
+import me.index.config.Config;
 import me.index.config.parameters.enums.LossFunction;
 import me.index.ml.Loss;
 
@@ -16,17 +17,8 @@ public record LossParameter(double value) {
         }
     }
 
-    public static Optional<LossParameter> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(new LossParameter(Double.parseDouble(value.trim())));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                    "property '" + KEY + "': expected a number, got '" + value.trim() + "'", e);
-        }
+    public static Optional<LossParameter> parse(Properties p) {
+        return Config.parseRecord(p, KEY, "a number", text -> new LossParameter(Double.parseDouble(text)));
     }
 
     public static LossParameter defaultFor(LossFunction loss) {

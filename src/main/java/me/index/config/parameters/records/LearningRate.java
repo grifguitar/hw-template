@@ -1,5 +1,6 @@
 package me.index.config.parameters.records;
 
+import me.index.config.Config;
 import me.index.config.parameters.enums.LossFunction;
 
 import java.util.Optional;
@@ -15,17 +16,8 @@ public record LearningRate(double value) {
         }
     }
 
-    public static Optional<LearningRate> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(new LearningRate(Double.parseDouble(value.trim())));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                    "property '" + KEY + "': expected a number, got '" + value.trim() + "'", e);
-        }
+    public static Optional<LearningRate> parse(Properties p) {
+        return Config.parseRecord(p, KEY, "a number", text -> new LearningRate(Double.parseDouble(text)));
     }
 
     public static LearningRate defaultFor(LossFunction loss) {

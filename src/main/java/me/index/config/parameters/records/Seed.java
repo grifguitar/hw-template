@@ -1,5 +1,7 @@
 package me.index.config.parameters.records;
 
+import me.index.config.Config;
+
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
@@ -8,17 +10,8 @@ public record Seed(long value) {
     public static final String KEY = "train.seed";
     public static final Seed DEFAULT = new Seed(42L);
 
-    public static Optional<Seed> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(new Seed(Long.parseLong(value.trim())));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                    "property '" + KEY + "': expected an integer, got '" + value.trim() + "'", e);
-        }
+    public static Optional<Seed> parse(Properties p) {
+        return Config.parseRecord(p, KEY, "an integer", text -> new Seed(Long.parseLong(text)));
     }
 
     public Random newRandom() {

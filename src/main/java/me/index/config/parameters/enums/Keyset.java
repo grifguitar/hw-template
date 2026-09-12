@@ -1,5 +1,7 @@
 package me.index.config.parameters.enums;
 
+import me.index.config.Config;
+
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
@@ -36,22 +38,11 @@ public enum Keyset {
 
     public static final String KEY = "keyset";
 
-    public static Optional<Keyset> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        String name = value.trim();
-        for (Keyset candidate : values()) {
-            if (candidate.name().equals(name)) {
-                return Optional.of(candidate);
-            }
-        }
-        throw new IllegalArgumentException("property '" + KEY + "': unknown value '" + name
-                + "'; allowed values: " + Arrays.toString(values()));
+    public static Optional<Keyset> parse(Properties p) {
+        return Config.parseEnum(p, KEY, values());
     }
 
-    public static IllegalArgumentException missing() {
+    public static IllegalArgumentException except() {
         return new IllegalArgumentException("missing required property '" + KEY
                 + "'; allowed values: " + Arrays.toString(values()));
     }

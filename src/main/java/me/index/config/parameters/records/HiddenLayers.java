@@ -1,5 +1,7 @@
 package me.index.config.parameters.records;
 
+import me.index.config.Config;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -18,25 +20,19 @@ public record HiddenLayers(List<Integer> sizes) {
         }
     }
 
-    public static Optional<HiddenLayers> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        String list = value.trim();
-        if (list.isEmpty()) {
-            return Optional.of(new HiddenLayers(List.of()));
+    public static Optional<HiddenLayers> parse(Properties p) {
+        return Config.parseRecord(p, KEY, "comma-separated ints", HiddenLayers::parse);
+    }
+
+    private static HiddenLayers parse(String text) {
+        if (text.isEmpty()) {
+            return new HiddenLayers(List.of());
         }
         List<Integer> sizes = new ArrayList<>();
-        for (String part : list.split(",", -1)) {
-            try {
-                sizes.add(Integer.parseInt(part.trim()));
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(
-                        "property '" + KEY + "': expected comma-separated ints, got '" + list + "'", e);
-            }
+        for (String part : text.split(",", -1)) {
+            sizes.add(Integer.parseInt(part.trim()));
         }
-        return Optional.of(new HiddenLayers(sizes));
+        return new HiddenLayers(sizes);
     }
 
     public int[] layerSizes() {

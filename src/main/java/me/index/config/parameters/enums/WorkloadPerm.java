@@ -1,6 +1,7 @@
 package me.index.config.parameters.enums;
 
-import java.util.Arrays;
+import me.index.config.Config;
+
 import java.util.Optional;
 import java.util.Properties;
 
@@ -16,18 +17,7 @@ public enum WorkloadPerm {
         this.value = value;
     }
 
-    public static Optional<WorkloadPerm> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        String name = value.trim();
-        for (WorkloadPerm candidate : values()) {
-            if (candidate.name().equals(name)) {
-                return Optional.of(candidate);
-            }
-        }
-        throw new IllegalArgumentException("property '" + KEY + "': unknown value '" + name
-                + "'; allowed values: " + Arrays.toString(values()));
+    public static Optional<WorkloadPerm> parse(Properties p) {
+        return Config.parseEnum(p, KEY, values());
     }
 }

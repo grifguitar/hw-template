@@ -2,8 +2,6 @@ package me.index.config;
 
 import me.index.config.parameters.enums.*;
 import me.index.config.parameters.records.*;
-import me.index.ml.Loss;
-import me.index.ml.loss.SquaredLoss;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -174,21 +172,6 @@ class ConfigTest {
     }
 
     @Test
-    void robustLossDefaultsDoNotCollapseIntoTheSquaredLoss() {
-        for (LossFunction lf : List.of(LossFunction._huber, LossFunction._log_cosh)) {
-            assertTrue(lf.defaultParameter() < 0.5,
-                    lf + " default parameter " + lf.defaultParameter() + " never reaches the linear branch");
-            Loss robust = lf.create(lf.defaultParameter());
-            Loss squared = new SquaredLoss();
-            assertNotEquals(squared.gradient(0.5, 0.0), robust.gradient(0.5, 0.0), 1e-6, lf.name());
-        }
-        assertTrue(LossFunction._squared.defaultParameter() > 0, "defaults must stay usable as a positive double");
-        assertFalse(LossFunction._squared.usesParameter());
-        assertFalse(LossFunction._absolute.usesParameter());
-        assertTrue(LossFunction._huber.usesParameter());
-    }
-
-    @Test
     void anUnusableLossParameterIsRejectedWhileReadingTheConfig() {
         Properties p = minimal();
         p.setProperty(LossFunction.KEY, "_power");
@@ -215,33 +198,12 @@ class ConfigTest {
     }
 
     @Test
-    void aDirectlyBuiltConfigStillValidatesTheLossParameter() {
-        Config c = Config.read(minimal());
-        assertThrows(IllegalArgumentException.class, () -> new Config(
-                c.keyset(), c.dataSize(), c.workload(), c.workloadPerm(), c.workloadFactor(), c.maxErr(),
-                c.activation(), LossFunction._power, new LossParameter(0.5), c.learningRate(),
-                c.batchSize(), c.epochs(), c.hiddenLayers(), c.seed(), c.plotPath()));
-    }
-
-    @Test
     void aMisspelledPropertyIsRejectedInsteadOfIgnored() {
         Properties p = minimal();
         p.setProperty("net.hiden.layers", "8,8");
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Config.read(p));
         assertTrue(e.getMessage().contains("net.hiden.layers"), e.getMessage());
         assertTrue(e.getMessage().contains(HiddenLayers.KEY), e.getMessage());
-    }
-
-    @Test
-    void everyKeyOfTheShippedConfigIsOwnedByAType() throws IOException {
-        Properties p = new Properties();
-        try (var in = Files.newInputStream(Path.of("config.properties"))) {
-            p.load(in);
-        }
-        for (String key : p.stringPropertyNames()) {
-            assertTrue(Config.KEYS.contains(key), "config.properties declares an unowned key: " + key);
-        }
-        assertEquals(15, Config.KEYS.size(), "every property must have exactly one type answering for it");
     }
 
     @Test

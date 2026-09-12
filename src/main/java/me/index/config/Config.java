@@ -7,10 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 public record Config(
         Keyset keyset,
@@ -29,50 +28,33 @@ public record Config(
         Seed seed,
         PlotPath plotPath
 ) {
-    public Config {
-        requireSet(keyset, Keyset.KEY);
-        requireSet(dataSize, DataSize.KEY);
-        requireSet(workload, Workload.KEY);
-        requireSet(workloadPerm, WorkloadPerm.KEY);
-        requireSet(workloadFactor, WorkloadFactor.KEY);
-        requireSet(maxErr, MaxErr.KEY);
-        requireSet(activation, Activation.KEY);
-        requireSet(loss, LossFunction.KEY);
-        requireSet(lossParameter, LossParameter.KEY);
-        requireSet(learningRate, LearningRate.KEY);
-        requireSet(batchSize, BatchSize.KEY);
-        requireSet(epochs, Epochs.KEY);
-        requireSet(hiddenLayers, HiddenLayers.KEY);
-        requireSet(seed, Seed.KEY);
-        requireSet(plotPath, PlotPath.KEY);
-        lossParameter.checkUsableWith(loss);
-    }
-
-    public static final Set<String> KEYS = Set.of(
-            Keyset.KEY, DataSize.KEY, Workload.KEY, WorkloadPerm.KEY, WorkloadFactor.KEY, MaxErr.KEY,
-            Activation.KEY, LossFunction.KEY, LossParameter.KEY, LearningRate.KEY, BatchSize.KEY,
-            Epochs.KEY, HiddenLayers.KEY, Seed.KEY, PlotPath.KEY);
+    private static final Set<String> KEYS = ConcurrentHashMap.newKeySet();
 
     public static Config read(Properties p) {
-        rejectUnknownKeys(p);
-        LossFunction loss = LossFunction.read(p).orElse(LossFunction.DEFAULT);
-        return new Config(
-                Keyset.read(p).orElseThrow(Keyset::missing),
-                DataSize.read(p).orElseThrow(DataSize::missing),
-                Workload.read(p).orElse(Workload.DEFAULT),
-                WorkloadPerm.read(p).orElse(WorkloadPerm.DEFAULT),
-                WorkloadFactor.read(p).orElse(WorkloadFactor.DEFAULT),
-                MaxErr.read(p).orElse(MaxErr.DEFAULT),
-                Activation.read(p).orElse(Activation.DEFAULT),
+        LossFunction loss = LossFunction.parse(p).orElse(LossFunction.DEFAULT);
+        LossParameter lossParameter = LossParameter.parse(p).orElseGet(() -> LossParameter.defaultFor(loss));
+        lossParameter.checkUsableWith(loss);
+
+        Config config = new Config(
+                Keyset.parse(p).orElseThrow(Keyset::except),
+                DataSize.parse(p).orElseThrow(DataSize::except),
+                Workload.parse(p).orElse(Workload.DEFAULT),
+                WorkloadPerm.parse(p).orElse(WorkloadPerm.DEFAULT),
+                WorkloadFactor.parse(p).orElse(WorkloadFactor.DEFAULT),
+                MaxErr.parse(p).orElse(MaxErr.DEFAULT),
+                Activation.parse(p).orElse(Activation.DEFAULT),
                 loss,
-                LossParameter.read(p).orElseGet(() -> LossParameter.defaultFor(loss)),
-                LearningRate.read(p).orElseGet(() -> LearningRate.defaultFor(loss)),
-                BatchSize.read(p).orElse(BatchSize.DEFAULT),
-                Epochs.read(p).orElse(Epochs.DEFAULT),
-                HiddenLayers.read(p).orElse(HiddenLayers.DEFAULT),
-                Seed.read(p).orElse(Seed.DEFAULT),
-                PlotPath.read(p).orElse(PlotPath.DEFAULT)
+                lossParameter,
+                LearningRate.parse(p).orElseGet(() -> LearningRate.defaultFor(loss)),
+                BatchSize.parse(p).orElse(BatchSize.DEFAULT),
+                Epochs.parse(p).orElse(Epochs.DEFAULT),
+                HiddenLayers.parse(p).orElse(HiddenLayers.DEFAULT),
+                Seed.parse(p).orElse(Seed.DEFAULT),
+                PlotPath.parse(p).orElse(PlotPath.DEFAULT)
         );
+
+        rejectUnknownKeys(p);
+        return config;
     }
 
     public static Config load(Path file) throws IOException {
@@ -89,6 +71,37 @@ public record Config(
         }
     }
 
+    public static <E extends Enum<E>> Optional<E> parseEnum(Properties p, String key, E[] allowed) {
+        KEYS.add(key);
+        String value = p.getProperty(key);
+        if (value == null) {
+            return Optional.empty();
+        }
+        String name = value.trim();
+        for (E candidate : allowed) {
+            if (candidate.name().equals(name)) {
+                return Optional.of(candidate);
+            }
+        }
+        throw new IllegalArgumentException("property '" + key + "': unknown value '" + name
+                + "'; allowed values: " + Arrays.toString(allowed));
+    }
+
+    public static <T> Optional<T> parseRecord(Properties p, String key, String expected, Function<String, T> parse) {
+        KEYS.add(key);
+        String value = p.getProperty(key);
+        if (value == null) {
+            return Optional.empty();
+        }
+        String text = value.trim();
+        try {
+            return Optional.of(parse.apply(text));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "property '" + key + "': expected " + expected + ", got '" + text + "'", e);
+        }
+    }
+
     private static void rejectUnknownKeys(Properties p) {
         List<String> unknown = new ArrayList<>();
         for (String key : p.stringPropertyNames()) {
@@ -102,12 +115,6 @@ public record Config(
             known.sort(null);
             throw new IllegalArgumentException("unknown propert" + (unknown.size() == 1 ? "y " : "ies ")
                     + unknown + "; known properties: " + known);
-        }
-    }
-
-    private static void requireSet(Object value, String key) {
-        if (value == null) {
-            throw new IllegalArgumentException(key + " must not be null");
         }
     }
 }

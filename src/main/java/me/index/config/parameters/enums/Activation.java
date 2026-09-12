@@ -1,5 +1,7 @@
 package me.index.config.parameters.enums;
 
+import me.index.config.Config;
+
 import me.index.ml.models.LeakyReluNet;
 import me.index.ml.Loss;
 import me.index.ml.Net;
@@ -8,7 +10,6 @@ import me.index.ml.models.SigmoidNet;
 import me.index.ml.models.SoftsignNet;
 import me.index.ml.models.TanhNet;
 
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
@@ -48,19 +49,8 @@ public enum Activation {
     public static final String KEY = "net.activation";
     public static final Activation DEFAULT = _relu;
 
-    public static Optional<Activation> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        String name = value.trim();
-        for (Activation candidate : values()) {
-            if (candidate.name().equals(name)) {
-                return Optional.of(candidate);
-            }
-        }
-        throw new IllegalArgumentException("property '" + KEY + "': unknown value '" + name
-                + "'; allowed values: " + Arrays.toString(values()));
+    public static Optional<Activation> parse(Properties p) {
+        return Config.parseEnum(p, KEY, values());
     }
 
     public abstract Net create(int[] layerSizes, double learningRate, int batchSize, Loss loss, Random rnd);

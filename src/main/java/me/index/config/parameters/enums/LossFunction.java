@@ -1,5 +1,7 @@
 package me.index.config.parameters.enums;
 
+import me.index.config.Config;
+
 import me.index.ml.Loss;
 import me.index.ml.loss.AbsoluteLoss;
 import me.index.ml.loss.HuberLoss;
@@ -7,7 +9,6 @@ import me.index.ml.loss.LogCoshLoss;
 import me.index.ml.loss.PowerLoss;
 import me.index.ml.loss.SquaredLoss;
 
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -27,11 +28,6 @@ public enum LossFunction {
         public double defaultLearningRate() {
             return 0.05;
         }
-
-        @Override
-        public boolean usesParameter() {
-            return false;
-        }
     },
     _absolute {
         @Override
@@ -48,11 +44,6 @@ public enum LossFunction {
         public double defaultLearningRate() {
             return 0.005;
         }
-
-        @Override
-        public boolean usesParameter() {
-            return false;
-        }
     },
     _huber {
         @Override
@@ -62,7 +53,7 @@ public enum LossFunction {
 
         @Override
         public double defaultParameter() {
-            return TRANSITION_WIDTH;
+            return 0.02;
         }
 
         @Override
@@ -78,7 +69,7 @@ public enum LossFunction {
 
         @Override
         public double defaultParameter() {
-            return TRANSITION_WIDTH;
+            return 0.02;
         }
 
         @Override
@@ -99,28 +90,15 @@ public enum LossFunction {
 
         @Override
         public double defaultLearningRate() {
-            return _squared.defaultLearningRate();
+            return 0.05;
         }
     };
 
     public static final String KEY = "train.loss";
     public static final LossFunction DEFAULT = _squared;
 
-    public static final double TRANSITION_WIDTH = 0.02;
-
-    public static Optional<LossFunction> read(Properties p) {
-        String value = p.getProperty(KEY);
-        if (value == null) {
-            return Optional.empty();
-        }
-        String name = value.trim();
-        for (LossFunction candidate : values()) {
-            if (candidate.name().equals(name)) {
-                return Optional.of(candidate);
-            }
-        }
-        throw new IllegalArgumentException("property '" + KEY + "': unknown value '" + name
-                + "'; allowed values: " + Arrays.toString(values()));
+    public static Optional<LossFunction> parse(Properties p) {
+        return Config.parseEnum(p, KEY, values());
     }
 
     public abstract Loss create(double parameter);
@@ -128,8 +106,4 @@ public enum LossFunction {
     public abstract double defaultParameter();
 
     public abstract double defaultLearningRate();
-
-    public boolean usesParameter() {
-        return true;
-    }
 }
