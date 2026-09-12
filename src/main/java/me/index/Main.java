@@ -25,8 +25,8 @@ public class Main {
             ys[i] = (double) i / (n - 1);
         }
 
-        Net net = new Net(0.05, 16, new Random(41));
-        net.train(xs, ys, 1000);
+        Net net = new Net(0.05, 32, new Random(42));
+        net.train(xs, ys, 100);
 
         long maxErr = 0;
         long[] truePos = new long[n];
@@ -46,8 +46,8 @@ public class Main {
                     .xlabel("keys")
                     .ylabel("positions")
                     .squareMarkers(context.keys.length >= 20_000)
-                    .scatter(context.keys, truePos, Plot.BLUE, "true_positions", 0.5)
-                    .scatter(context.keys, predPos, Plot.RED, "predicted_positions", 0.5)
+                    .scatter(context.keys, truePos, Plot.BLUE, "true_positions", 0.1)
+                    .scatter(context.keys, predPos, Plot.RED, "predicted_positions", 0.1)
                     .save("plot.pdf");
         } catch (Exception e) {
             throw new RuntimeException(e);
