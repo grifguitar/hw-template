@@ -78,10 +78,10 @@ public final class Document {
 
             long[] offsets = new long[totalObjects + 1];
 
-            offsets[CATALOG] = out.count;
+            offsets[CATALOG] = out.count();
             out.write(CATALOG + " 0 obj\n<< /Type /Catalog /Pages " + PAGES_TREE + " 0 R >>\nendobj\n");
 
-            offsets[PAGES_TREE] = out.count;
+            offsets[PAGES_TREE] = out.count();
             StringBuilder kids = new StringBuilder();
             for (int i = 0; i < n; i++)
                 kids.append(PAGE_TYPE[i]).append(" 0 R ");
@@ -96,25 +96,25 @@ public final class Document {
                 Page p = pages.get(i);
                 byte[] contentBytes = p.content.toString().getBytes(StandardCharsets.ISO_8859_1);
 
-                offsets[PAGE_TYPE[i]] = out.count;
+                offsets[PAGE_TYPE[i]] = out.count();
                 out.write(PAGE_TYPE[i] + " 0 obj\n<< /Type /Page /Parent " + PAGES_TREE + " 0 R "
                         + "/MediaBox [0 0 " + fmt(p.width) + " " + fmt(p.height) + "] "
                         + "/Resources << /Font << " + fontResDict + ">> >> "
                         + "/Contents " + PAGE_CONTENT[i] + " 0 R >>\nendobj\n");
 
-                offsets[PAGE_CONTENT[i]] = out.count;
+                offsets[PAGE_CONTENT[i]] = out.count();
                 out.write(PAGE_CONTENT[i] + " 0 obj\n<< /Length " + contentBytes.length + " >>\nstream\n");
                 out.write(contentBytes);
                 out.write("\nendstream\nendobj\n");
             }
 
             for (int i = 0; i < fontList.size(); i++) {
-                offsets[FONTS[i]] = out.count;
+                offsets[FONTS[i]] = out.count();
                 out.write(FONTS[i] + " 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /"
                         + fontList.get(i).baseName + " /Encoding /WinAnsiEncoding >>\nendobj\n");
             }
 
-            long xrefStart = out.count;
+            long xrefStart = out.count();
             out.write("xref\n0 " + (totalObjects + 1) + "\n");
             out.write("0000000000 65535 f \n");
             for (int i = 1; i <= totalObjects; i++) {

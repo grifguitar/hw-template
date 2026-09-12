@@ -6,19 +6,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.lang.reflect.RecordComponent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
-import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ConfigTest {
     private static Properties minimal() {
         Properties p = new Properties();
-        p.setProperty("keyset", "_gauss_int32");
-        p.setProperty("data.size", "_1e4");
+        p.setProperty(Keyset.KEY, "_gauss_int32");
+        p.setProperty(DataSize.KEY, "_1e4");
         return p;
     }
 
@@ -27,21 +27,23 @@ class ConfigTest {
         Config c = Config.read(minimal());
         assertEquals(Keyset._gauss_int32, c.keyset());
         assertEquals(DataSize._1e4, c.dataSize());
-        assertEquals(Config.DEFAULT_WORKLOAD, c.workload());
-        assertEquals(Config.DEFAULT_WORKLOAD_PERM, c.workloadPerm());
-        assertEquals(Config.DEFAULT_WORKLOAD_FACTOR, c.workloadFactor());
-        assertEquals(Config.DEFAULT_MAX_ERR, c.maxErr());
-        assertNotNull(c.training());
-        assertEquals(Training.DEFAULT_SEED, c.training().seed());
-        assertEquals(Training.DEFAULT_EPOCHS, c.training().epochs());
-        assertEquals(Training.DEFAULT_HIDDEN_LAYERS, c.training().hiddenLayers());
-        assertEquals(Training.DEFAULT_PLOT_PATH, c.training().plotPath());
+        assertEquals(Workload.DEFAULT, c.workload());
+        assertEquals(WorkloadPerm.DEFAULT, c.workloadPerm());
+        assertEquals(WorkloadFactor.DEFAULT, c.workloadFactor());
+        assertEquals(MaxErr.DEFAULT, c.maxErr());
+        assertEquals(Activation.DEFAULT, c.activation());
+        assertEquals(LossFunction.DEFAULT, c.loss());
+        assertEquals(Seed.DEFAULT, c.seed());
+        assertEquals(Epochs.DEFAULT, c.epochs());
+        assertEquals(BatchSize.DEFAULT, c.batchSize());
+        assertEquals(HiddenLayers.DEFAULT, c.hiddenLayers());
+        assertEquals(PlotPath.DEFAULT, c.plotPath());
     }
 
     @Test
     void missingRequiredKeyIsReportedWithAllowedValues() {
         Properties p = minimal();
-        p.remove("keyset");
+        p.remove(Keyset.KEY);
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Config.read(p));
         assertTrue(e.getMessage().contains("keyset"), e.getMessage());
         assertTrue(e.getMessage().contains("_gauss_int32"), e.getMessage());
@@ -50,7 +52,7 @@ class ConfigTest {
     @Test
     void unknownEnumValueIsReportedWithAllowedValues() {
         Properties p = minimal();
-        p.setProperty("workload.distribution", "_zipff");
+        p.setProperty(Workload.KEY, "_zipff");
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Config.read(p));
         assertTrue(e.getMessage().contains("_zipff"), e.getMessage());
         assertTrue(e.getMessage().contains("_zipf"), e.getMessage());
@@ -59,50 +61,50 @@ class ConfigTest {
     @Test
     void trainingValuesAreParsedAndValidated() {
         Properties p = minimal();
-        p.setProperty("train.seed", "7");
-        p.setProperty("train.learning.rate", "0.01");
-        p.setProperty("train.batch.size", "64");
-        p.setProperty("train.epochs", "5");
-        p.setProperty("net.hidden.layers", "16, 8 ,4");
-        p.setProperty("plot.path", "out/x.pdf");
+        p.setProperty(Seed.KEY, "7");
+        p.setProperty(LearningRate.KEY, "0.01");
+        p.setProperty(BatchSize.KEY, "64");
+        p.setProperty(Epochs.KEY, "5");
+        p.setProperty(HiddenLayers.KEY, "16, 8 ,4");
+        p.setProperty(PlotPath.KEY, "out/x.pdf");
 
-        Training t = Config.read(p).training();
-        assertEquals(7L, t.seed());
-        assertEquals(0.01, t.learningRate());
-        assertEquals(64, t.batchSize());
-        assertEquals(5, t.epochs());
-        assertEquals(List.of(16, 8, 4), t.hiddenLayers());
-        assertEquals("out/x.pdf", t.plotPath());
-        assertArrayEquals(new int[]{1, 16, 8, 4, 1}, t.layerSizes());
+        Config c = Config.read(p);
+        assertEquals(7L, c.seed().value());
+        assertEquals(0.01, c.learningRate().value());
+        assertEquals(64, c.batchSize().value());
+        assertEquals(5, c.epochs().value());
+        assertEquals(List.of(16, 8, 4), c.hiddenLayers().sizes());
+        assertEquals("out/x.pdf", c.plotPath().value());
+        assertArrayEquals(new int[]{1, 16, 8, 4, 1}, c.hiddenLayers().layerSizes());
     }
 
     @Test
     void emptyHiddenLayersMeanADirectLinearModel() {
         Properties p = minimal();
-        p.setProperty("net.hidden.layers", "");
-        assertArrayEquals(new int[]{1, 1}, Config.read(p).training().layerSizes());
+        p.setProperty(HiddenLayers.KEY, "");
+        assertArrayEquals(new int[]{1, 1}, Config.read(p).hiddenLayers().layerSizes());
     }
 
     @Test
     void invalidNumbersAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> {
             Properties p = minimal();
-            p.setProperty("train.epochs", "0");
+            p.setProperty(Epochs.KEY, "0");
             Config.read(p);
         });
         assertThrows(IllegalArgumentException.class, () -> {
             Properties p = minimal();
-            p.setProperty("train.learning.rate", "-1");
+            p.setProperty(LearningRate.KEY, "-1");
             Config.read(p);
         });
         assertThrows(IllegalArgumentException.class, () -> {
             Properties p = minimal();
-            p.setProperty("net.hidden.layers", "4,x");
+            p.setProperty(HiddenLayers.KEY, "4,x");
             Config.read(p);
         });
         assertThrows(IllegalArgumentException.class, () -> {
             Properties p = minimal();
-            p.setProperty("train.seed", "abc");
+            p.setProperty(Seed.KEY, "abc");
             Config.read(p);
         });
     }
@@ -110,7 +112,7 @@ class ConfigTest {
     @Test
     void valuesAreTrimmed() {
         Properties p = minimal();
-        p.setProperty("keyset", "  _gauss_int64  ");
+        p.setProperty(Keyset.KEY, "  _gauss_int64  ");
         assertEquals(Keyset._gauss_int64, Config.read(p).keyset());
     }
 
@@ -139,13 +141,14 @@ class ConfigTest {
     void everyLossGetsItsOwnDefaultParameterAndLearningRate() {
         for (LossFunction lf : LossFunction.values()) {
             Properties p = minimal();
-            p.setProperty("train.loss", lf.name());
+            p.setProperty(LossFunction.KEY, lf.name());
             Config c = Config.read(p);
-            assertEquals(lf, c.training().lossFunction());
-            assertEquals(lf.defaultParameter(), c.training().lossParameter(), lf.name());
-            assertEquals(lf.defaultLearningRate(), c.training().learningRate(), lf.name());
+            assertEquals(lf, c.loss());
+            assertEquals(lf.defaultParameter(), c.lossParameter().value(), lf.name());
+            assertEquals(lf.defaultLearningRate(), c.learningRate().value(), lf.name());
             assertTrue(lf.defaultLearningRate() > 0 && Double.isFinite(lf.defaultLearningRate()), lf.name());
-            assertDoesNotThrow(() -> c.training().newNet(new Random(1)), lf.name());
+            assertDoesNotThrow(() -> c.lossParameter().newLoss(c.loss()), lf.name());
+            assertNotNull(c.plotPath(), lf.name());
         }
     }
 
@@ -163,9 +166,9 @@ class ConfigTest {
     @Test
     void anExplicitLearningRateOverridesThePerLossDefault() {
         Properties p = minimal();
-        p.setProperty("train.loss", "_huber");
-        p.setProperty("train.learning.rate", "0.001");
-        assertEquals(0.001, Config.read(p).training().learningRate());
+        p.setProperty(LossFunction.KEY, "_huber");
+        p.setProperty(LearningRate.KEY, "0.001");
+        assertEquals(0.001, Config.read(p).learningRate().value());
     }
 
     @Test
@@ -186,8 +189,8 @@ class ConfigTest {
     @Test
     void anUnusableLossParameterIsRejectedWhileReadingTheConfig() {
         Properties p = minimal();
-        p.setProperty("train.loss", "_power");
-        p.setProperty("train.loss.parameter", "0.5");
+        p.setProperty(LossFunction.KEY, "_power");
+        p.setProperty(LossParameter.KEY, "0.5");
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Config.read(p));
         assertTrue(e.getMessage().contains("p must be finite and at least 1"), e.getMessage());
     }
@@ -195,18 +198,55 @@ class ConfigTest {
     @Test
     void anExplicitLossParameterOverridesTheDefault() {
         Properties p = minimal();
-        p.setProperty("train.loss", "_huber");
-        p.setProperty("train.loss.parameter", "0.005");
-        assertEquals(0.005, Config.read(p).training().lossParameter());
+        p.setProperty(LossFunction.KEY, "_huber");
+        p.setProperty(LossParameter.KEY, "0.005");
+        assertEquals(0.005, Config.read(p).lossParameter().value());
     }
 
     @Test
-    void keysetFlagsAreConsistentWithSource() {
+    void anEmptyConfigStillYieldsEveryOptionalParameter() {
+        Properties p = minimal();
+        Config c = Config.read(p);
+        for (RecordComponent component : Config.class.getRecordComponents()) {
+            assertDoesNotThrow(() -> assertNotNull(component.getAccessor().invoke(c), component.getName()));
+        }
+    }
+
+    @Test
+    void aDirectlyBuiltConfigStillValidatesTheLossParameter() {
+        Config c = Config.read(minimal());
+        assertThrows(IllegalArgumentException.class, () -> new Config(
+                c.keyset(), c.dataSize(), c.workload(), c.workloadPerm(), c.workloadFactor(), c.maxErr(),
+                c.activation(), LossFunction._power, new LossParameter(0.5), c.learningRate(),
+                c.batchSize(), c.epochs(), c.hiddenLayers(), c.seed(), c.plotPath()));
+    }
+
+    @Test
+    void aMisspelledPropertyIsRejectedInsteadOfIgnored() {
+        Properties p = minimal();
+        p.setProperty("net.hiden.layers", "8,8");
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Config.read(p));
+        assertTrue(e.getMessage().contains("net.hiden.layers"), e.getMessage());
+        assertTrue(e.getMessage().contains(HiddenLayers.KEY), e.getMessage());
+    }
+
+    @Test
+    void everyKeyOfTheShippedConfigIsOwnedByAType() throws IOException {
+        Properties p = new Properties();
+        try (var in = Files.newInputStream(Path.of("config.properties"))) {
+            p.load(in);
+        }
+        for (String key : p.stringPropertyNames()) {
+            assertTrue(Config.KEYS.contains(key), "config.properties declares an unowned key: " + key);
+        }
+        assertEquals(15, Config.KEYS.size(), "every property must have exactly one type answering for it");
+    }
+
+    @Test
+    void onlySosdKeysetsNameADataFile() {
         for (Keyset k : Keyset.values()) {
-            assertEquals(k.source == Keyset.Source.SOSD, k.isSOSD, k.name());
-            assertEquals(k.source == Keyset.Source.GAUSSIAN, k.isGaussian, k.name());
-            assertEquals(k.source == Keyset.Source.LOGNORMAL, k.isLognormal, k.name());
-            if (k.isSOSD) {
+            assertEquals(k.source == Keyset.Source.SOSD, k.isSOSD(), k.name());
+            if (k.isSOSD()) {
                 assertEquals(k.name().substring(1), k.fileName());
             } else {
                 assertThrows(IllegalStateException.class, k::fileName);

@@ -1,6 +1,6 @@
 package me.index;
 
-import me.index.config.Training;
+import me.index.config.Config;
 import me.index.ml.Net;
 import me.index.view.Plot;
 
@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.Random;
 
 public class Main {
     private static final String DEFAULT_CONFIG = "config.properties";
@@ -51,11 +50,16 @@ public class Main {
             ys[i] = (double) i / (n - 1);
         }
 
-        Training training = context.config.training();
-        Net net = training.newNet(new Random(training.seed()));
+        Config config = context.config;
+        Net net = config.activation().create(
+                config.hiddenLayers().layerSizes(),
+                config.learningRate().value(),
+                config.batchSize().value(),
+                config.lossParameter().newLoss(config.loss()),
+                config.seed().newRandom());
         System.out.println("model: " + net.id() + " layers=" + Arrays.toString(net.layerSizes()));
         long startedAt = System.nanoTime();
-        double running = net.train(xs, ys, training.epochs());
+        double running = net.train(xs, ys, config.epochs().value());
         double elapsed = (System.nanoTime() - startedAt) / 1e9;
         if (!Double.isFinite(running)) {
             throw new IllegalStateException("training diverged (MSE = " + running
@@ -64,7 +68,7 @@ public class Main {
         }
         double mse = net.meanSquaredError(xs, ys);
         System.out.printf(Locale.US, "trained %d epoch(s) in %.1f s, final MSE %.3e (%s loss %.3e)%n",
-                training.epochs(), elapsed, mse, net.id(), net.meanLoss(xs, ys));
+                config.epochs().value(), elapsed, mse, net.id(), net.meanLoss(xs, ys));
 
         long maxErr = 0;
         long[] truePos = new long[n];
@@ -83,8 +87,8 @@ public class Main {
                 .squareMarkers(n >= 20_000)
                 .scatter(keys, truePos, Plot.BLUE, "true_positions", 0.1)
                 .scatter(keys, predPos, Plot.RED, "predicted_positions", 0.1)
-                .save(training.plotPath());
-        System.out.println("plot written to " + Path.of(training.plotPath()).toAbsolutePath());
+                .save(config.plotPath().value());
+        System.out.println("plot written to " + config.plotPath().path().toAbsolutePath());
     }
 
     static String preview(long[] keys) {

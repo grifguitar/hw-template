@@ -6,10 +6,14 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 public final class CntOutputStream extends FilterOutputStream {
-    public long count = 0;
+    private long count = 0;
 
     public CntOutputStream(OutputStream out) {
         super(out);
+    }
+
+    public long count() {
+        return count;
     }
 
     public void write(String s) throws IOException {

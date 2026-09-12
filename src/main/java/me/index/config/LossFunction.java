@@ -7,6 +7,10 @@ import me.index.ml.loss.LogCoshLoss;
 import me.index.ml.loss.PowerLoss;
 import me.index.ml.loss.SquaredLoss;
 
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.Properties;
+
 public enum LossFunction {
     _squared {
         @Override
@@ -99,7 +103,25 @@ public enum LossFunction {
         }
     };
 
+    public static final String KEY = "train.loss";
+    public static final LossFunction DEFAULT = _squared;
+
     public static final double TRANSITION_WIDTH = 0.02;
+
+    public static Optional<LossFunction> read(Properties p) {
+        String value = p.getProperty(KEY);
+        if (value == null) {
+            return Optional.empty();
+        }
+        String name = value.trim();
+        for (LossFunction candidate : values()) {
+            if (candidate.name().equals(name)) {
+                return Optional.of(candidate);
+            }
+        }
+        throw new IllegalArgumentException("property '" + KEY + "': unknown value '" + name
+                + "'; allowed values: " + Arrays.toString(values()));
+    }
 
     public abstract Loss create(double parameter);
 

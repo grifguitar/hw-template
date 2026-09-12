@@ -80,7 +80,7 @@ class DocumentTest {
             out.write(new byte[]{1, 2, 3});
             out.write(new byte[]{4, 5, 6, 7}, 1, 2);
             out.write("hello");
-            assertEquals(1 + 3 + 2 + 5, out.count);
+            assertEquals(1 + 3 + 2 + 5, out.count());
         }
         assertEquals(11, sink.size());
     }

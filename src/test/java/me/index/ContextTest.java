@@ -1,15 +1,9 @@
 package me.index;
 
-import me.index.config.Activation;
 import me.index.config.Config;
 import me.index.config.DataSize;
 import me.index.config.Keyset;
-import me.index.config.LossFunction;
-import me.index.config.MaxErr;
-import me.index.config.Training;
-import me.index.config.Workload;
-import me.index.config.WorkloadFactor;
-import me.index.config.WorkloadPerm;
+import me.index.config.Seed;
 import org.junit.jupiter.api.Test;
 
 import org.junit.jupiter.api.io.TempDir;
@@ -19,15 +13,21 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ContextTest {
     private static Config config(Keyset keyset, DataSize size) {
-        return new Config(keyset, Workload._uniform, WorkloadPerm._false, WorkloadFactor._read_only,
-                size, MaxErr._0,
-                new Training(42L, 0.05, 32, 1, List.of(4), Activation._relu, LossFunction._squared, 2.0, "plot.pdf"));
+        return config(keyset, size, Seed.DEFAULT.value());
+    }
+
+    private static Config config(Keyset keyset, DataSize size, long seed) {
+        Properties p = new Properties();
+        p.setProperty(Keyset.KEY, keyset.name());
+        p.setProperty(DataSize.KEY, size.name());
+        p.setProperty(Seed.KEY, Long.toString(seed));
+        return Config.read(p);
     }
 
     @Test
@@ -56,8 +56,7 @@ class ContextTest {
     @Test
     void seedFromConfigDrivesGeneration() throws IOException {
         Config a = config(Keyset._gauss_int64, DataSize._1e4);
-        Config b = new Config(a.keyset(), a.workload(), a.workloadPerm(), a.workloadFactor(), a.dataSize(),
-                a.maxErr(), new Training(7L, 0.05, 32, 1, List.of(4), Activation._relu, LossFunction._squared, 2.0, "plot.pdf"));
+        Config b = config(Keyset._gauss_int64, DataSize._1e4, 7L);
         assertArrayEquals(new Context(a, Path.of("")).keys, new Context(a, Path.of("")).keys);
         assertFalse(java.util.Arrays.equals(new Context(a, Path.of("")).keys, new Context(b, Path.of("")).keys));
     }

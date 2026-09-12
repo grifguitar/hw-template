@@ -16,10 +16,10 @@ public final class Context {
 
     public Context(Config cfg, Path dataDir) throws IOException {
         this.config = cfg;
-        Random rnd = new Random(cfg.training().seed());
+        Random rnd = cfg.seed().newRandom();
         Keyset keyset = cfg.keyset();
 
-        if (!keyset.isLong && !keyset.isSOSD && cfg.dataSize() == DataSize._max) {
+        if (!keyset.isLong && !keyset.isSOSD() && cfg.dataSize() == DataSize._max) {
             throw new IllegalArgumentException("incorrect properties: data.size=" + DataSize._max
                     + " is not available for 32-bit synthetic keysets (keyset=" + keyset + ")");
         }
