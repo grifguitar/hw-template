@@ -1,5 +1,6 @@
-package me.index.config;
+package me.index.config.parameters.records;
 
+import me.index.config.parameters.enums.LossFunction;
 import me.index.ml.Loss;
 
 import java.util.Optional;

@@ -1,4 +1,4 @@
-package me.index.config;
+package me.index.config.parameters.enums;
 
 import me.index.ml.models.LeakyReluNet;
 import me.index.ml.Loss;

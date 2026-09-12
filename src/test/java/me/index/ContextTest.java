@@ -1,9 +1,9 @@
 package me.index;
 
 import me.index.config.Config;
-import me.index.config.DataSize;
-import me.index.config.Keyset;
-import me.index.config.Seed;
+import me.index.config.parameters.enums.DataSize;
+import me.index.config.parameters.enums.Keyset;
+import me.index.config.parameters.records.Seed;
 import org.junit.jupiter.api.Test;
 
 import org.junit.jupiter.api.io.TempDir;

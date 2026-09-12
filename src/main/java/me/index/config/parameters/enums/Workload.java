@@ -1,28 +1,22 @@
-package me.index.config;
+package me.index.config.parameters.enums;
 
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
 
-public enum WorkloadPerm {
-    _true(true), _false(false);
+public enum Workload {
+    _zipf, _uniform, _x_y_9999, _x_y_99, _x_y_90;
 
-    public static final String KEY = "workload.permutation";
-    public static final WorkloadPerm DEFAULT = _false;
+    public static final String KEY = "workload.distribution";
+    public static final Workload DEFAULT = _uniform;
 
-    public final boolean value;
-
-    WorkloadPerm(boolean value) {
-        this.value = value;
-    }
-
-    public static Optional<WorkloadPerm> read(Properties p) {
+    public static Optional<Workload> read(Properties p) {
         String value = p.getProperty(KEY);
         if (value == null) {
             return Optional.empty();
         }
         String name = value.trim();
-        for (WorkloadPerm candidate : values()) {
+        for (Workload candidate : values()) {
             if (candidate.name().equals(name)) {
                 return Optional.of(candidate);
             }

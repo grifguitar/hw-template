@@ -1,4 +1,4 @@
-package me.index.config;
+package me.index.config.parameters.enums;
 
 import java.util.Arrays;
 import java.util.Optional;

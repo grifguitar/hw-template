@@ -1,4 +1,4 @@
-package me.index.config;
+package me.index.config.parameters.enums;
 
 import me.index.ml.Loss;
 import me.index.ml.loss.AbsoluteLoss;

@@ -1,5 +1,8 @@
 package me.index.config;
 
+import me.index.config.parameters.enums.*;
+import me.index.config.parameters.records.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;

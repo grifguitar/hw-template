@@ -1,5 +1,7 @@
 package me.index.config;
 
+import me.index.config.parameters.enums.*;
+import me.index.config.parameters.records.*;
 import me.index.ml.Loss;
 import me.index.ml.loss.SquaredLoss;
 import org.junit.jupiter.api.Test;

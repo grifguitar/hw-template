@@ -1,4 +1,4 @@
-package me.index.config;
+package me.index.config.parameters.records;
 
 import java.nio.file.Path;
 import java.util.Optional;

@@ -1,4 +1,4 @@
-package me.index.config;
+package me.index.config.parameters.records;
 
 import java.util.Optional;
 import java.util.Properties;

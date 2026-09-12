@@ -1,6 +1,6 @@
 package me.index.ml;
 
-import me.index.config.LossFunction;
+import me.index.config.parameters.enums.LossFunction;
 import me.index.ml.loss.PowerLoss;
 import me.index.ml.loss.SquaredLoss;
 import me.index.ml.models.ReluNet;
