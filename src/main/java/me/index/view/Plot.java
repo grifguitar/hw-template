@@ -1,4 +1,4 @@
-package me.index.pdf;
+package me.index.view;
 
 import java.io.IOException;
 import java.util.ArrayList;

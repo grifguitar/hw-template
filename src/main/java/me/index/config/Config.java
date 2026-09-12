@@ -12,13 +12,20 @@ public record Config(
 ) {
     public static Config read(Properties p) {
         try {
-            Keyset k = Keyset.valueOf(p.getProperty("keyset"));
-            Workload w = Workload.valueOf(p.getProperty("workload.distribution"));
-            WorkloadPerm wp = WorkloadPerm.valueOf(p.getProperty("workload.permutation"));
-            WorkloadFactor wf = WorkloadFactor.valueOf(p.getProperty("workload.factor"));
-            DataSize ds = DataSize.valueOf(p.getProperty("data.size"));
-            MaxErr err = MaxErr.valueOf(p.getProperty("max.err"));
-            return new Config(k, w, wp, wf, ds, err);
+            String k = p.getProperty("keyset");
+            String w = p.getProperty("workload.distribution");
+            String wp = p.getProperty("workload.permutation");
+            String wf = p.getProperty("workload.factor");
+            String ds = p.getProperty("data.size");
+            String err = p.getProperty("max.err");
+            return new Config(
+                    (k != null) ? Keyset.valueOf(k) : null,
+                    (w != null) ? Workload.valueOf(w) : null,
+                    (wp != null) ? WorkloadPerm.valueOf(wp) : null,
+                    (wf != null) ? WorkloadFactor.valueOf(wf) : null,
+                    (ds != null) ? DataSize.valueOf(ds) : null,
+                    (err != null) ? MaxErr.valueOf(err) : null
+            );
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

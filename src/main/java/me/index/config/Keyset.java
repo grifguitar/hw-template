@@ -1,10 +1,10 @@
 package me.index.config;
 
 public enum Keyset {
-    _uniform_int32(false, null),
-    _uniform_int64(true, null),
-    _p_linear_int32(false, null),
-    _p_linear_int64(true, null),
+    _gauss_int32(false, null),
+    _gauss_int64(true, null),
+    _log_norm_int32(false, null),
+    _log_norm_int64(true, null),
     _wiki_ts_200M_uint64(true, new boolean[]{false, false}),
     _books_200M_uint32(false, new boolean[]{false, false}),
     _books_800M_uint64(true, new boolean[]{true, true}),
@@ -13,8 +13,8 @@ public enum Keyset {
 
     public final boolean isLong;
     public final boolean isSOSD;
-    public final boolean isUniform;
-    public final boolean isLinear;
+    public final boolean isGaussian;
+    public final boolean isLognormal;
 
     public final boolean needShift;
     public final boolean needPlusOne;
@@ -22,8 +22,8 @@ public enum Keyset {
     Keyset(boolean isLong, boolean[] flags) {
         this.isLong = isLong;
         this.isSOSD = (flags != null);
-        this.isUniform = (name().equals("_uniform_int32") || name().equals("_uniform_int64"));
-        this.isLinear = (name().equals("_p_linear_int32") || name().equals("_p_linear_int64"));
+        this.isGaussian = (name().equals("_gauss_int32") || name().equals("_gauss_int64"));
+        this.isLognormal = (name().equals("_log_norm_int32") || name().equals("_log_norm_int64"));
         if (isSOSD) {
             this.needShift = flags[0];
             this.needPlusOne = flags[1];

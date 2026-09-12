@@ -1,4 +1,4 @@
-package me.index.pdf;
+package me.index.view;
 
 import me.index.io.CntOutputStream;
 
@@ -6,7 +6,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import static me.index.pdf.Page.fmt;
+import static me.index.view.Page.fmt;
 
 public final class Document {
     private final List<Page> pages;

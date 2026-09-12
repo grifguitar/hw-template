@@ -1,4 +1,4 @@
-package me.index.utils;
+package me.index.math;
 
 import java.util.Arrays;
 import java.util.Random;

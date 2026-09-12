@@ -5,10 +5,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
-public final class CountOutputStream extends FilterOutputStream {
+public final class CntOutputStream extends FilterOutputStream {
     public long count = 0;
 
-    public CountOutputStream(OutputStream out) {
+    public CntOutputStream(OutputStream out) {
         super(out);
     }
 

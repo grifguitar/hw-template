@@ -1,6 +1,6 @@
 package me.index.ml;
 
-import me.index.Pair;
+import me.index.math.Pair;
 
 import java.util.Random;
 
@@ -14,11 +14,11 @@ public class Net {
     private final int batchsize;
     private final Random rnd;
 
-    Net(double learningRate, int batchsize) {
+    public Net(double learningRate, int batchsize, Random rnd) {
         this.sz = new int[]{1, 4, 4, 1};
         this.lr = learningRate;
         this.batchsize = batchsize;
-        this.rnd = new Random(42);
+        this.rnd = rnd;
 
         W = new double[sz.length - 1][][];
         B = new double[sz.length - 1][][];
@@ -51,11 +51,11 @@ public class Net {
         return new Pair<>(z, a);
     }
 
-    double predict(double x) {
+    public double predict(double x) {
         return forward(new double[][]{{x}}).second[sz.length - 1][0][0];
     }
 
-    void train(double[] xs, double[] ys, int epochs) {
+    public void train(double[] xs, double[] ys, int epochs) {
         int n = xs.length;
 
         int[] perm = new int[n];
@@ -82,11 +82,11 @@ public class Net {
                     yb[i] = ys[perm[start + i]];
                 }
 
-                double[][][] sumDW = new double[sz.length - 1][][];
-                double[][][] sumDB = new double[sz.length - 1][][];
+                double[][][] dW = new double[sz.length - 1][][];
+                double[][][] dB = new double[sz.length - 1][][];
                 for (int l = 0; l < sz.length - 1; l++) {
-                    sumDW[l] = new double[sz[l + 1]][sz[l]];
-                    sumDB[l] = new double[sz[l + 1]][1];
+                    dW[l] = new double[sz[l + 1]][sz[l]];
+                    dB[l] = new double[sz[l + 1]][1];
                 }
 
                 for (int i = 0; i < xb.length; i++) {
@@ -94,27 +94,24 @@ public class Net {
                     double[][][] z = c.first;
                     double[][][] a = c.second;
 
-                    double[][] target = {{yb[i]}};
-
-                    double[][][] delta = new double[sz.length - 1][][];
-                    delta[sz.length - 2] = sub(a[sz.length - 1], target);
+                    double[][][] d = new double[sz.length - 1][][];
+                    d[sz.length - 2] = sub(a[sz.length - 1], new double[][]{{yb[i]}});
                     for (int l = sz.length - 3; l >= 0; l--) {
-                        delta[l] = dot(
-                                mul(tp(W[l + 1]), delta[l + 1]),
+                        d[l] = dot(
+                                mul(tp(W[l + 1]), d[l + 1]),
                                 apply(z[l], (t) -> (t > 0 ? 1.0 : 0.0))
                         );
                     }
 
                     for (int l = 0; l < sz.length - 1; l++) {
-                        sumDW[l] = sum(sumDW[l], mul(delta[l], tp(a[l])));
-                        sumDB[l] = sum(sumDB[l], delta[l]);
+                        dW[l] = sum(dW[l], mul(d[l], tp(a[l])));
+                        dB[l] = sum(dB[l], d[l]);
                     }
                 }
 
-                double step = lr / xb.length;
                 for (int l = 0; l < sz.length - 1; l++) {
-                    W[l] = sub(W[l], mul(sumDW[l], step));
-                    B[l] = sub(B[l], mul(sumDB[l], step));
+                    W[l] = sub(W[l], mul(dW[l], lr / xb.length));
+                    B[l] = sub(B[l], mul(dB[l], lr / xb.length));
                 }
             }
         }

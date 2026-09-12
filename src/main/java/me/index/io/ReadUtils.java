@@ -1,4 +1,4 @@
-package me.index.utils;
+package me.index.io;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;

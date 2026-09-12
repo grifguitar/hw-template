@@ -3,6 +3,7 @@ package me.index.math;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
+import java.util.Random;
 import java.util.function.Function;
 
 public final class Maths {
@@ -94,7 +95,7 @@ public final class Maths {
         if (y < 0) {
             y = -y;
         }
-        Int128 r = new Int128(java.lang.Math.unsignedMultiplyHigh(x.lo(), y), x.lo() * y);
+        Int128 r = new Int128(Math.unsignedMultiplyHigh(x.lo(), y), x.lo() * y);
         return (sign) ? neg(r) : r;
     }
 
@@ -104,7 +105,7 @@ public final class Maths {
             x = neg(x);
         if (lessZero(y))
             y = neg(y);
-        Int128 r = new Int128(java.lang.Math.unsignedMultiplyHigh(x.lo(), y.lo()), x.lo() * y.lo());
+        Int128 r = new Int128(Math.unsignedMultiplyHigh(x.lo(), y.lo()), x.lo() * y.lo());
         return (sign) ? neg(r) : r;
     }
 
@@ -204,5 +205,16 @@ public final class Maths {
             for (int j = 0; j < a[0].length; j++)
                 r[i][j] = f.apply(a[i][j]);
         return r;
+    }
+
+    public static int zipf(int n, Random rnd) {
+        for (int it = 0; it < 1000; it++) {
+            double x = Math.exp(rnd.nextDouble() * Math.log(n + 1));
+            int k = (int) Math.ceil(x);
+            if (k < 1 || k > n) continue;
+            double accept = Math.pow(k / x, 1.0);
+            if (rnd.nextDouble() < accept) return k - 1;
+        }
+        return 0;
     }
 }

@@ -1,4 +1,4 @@
-package me.index.utils;
+package me.index.math;
 
 public class Pair<S, T> {
     public S first;

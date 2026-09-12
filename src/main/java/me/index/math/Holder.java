@@ -1,4 +1,4 @@
-package me.index.utils;
+package me.index.math;
 
 public class Holder<T> {
     public T v;
