@@ -1,35 +1,42 @@
 package me.index.config;
 
 public enum Keyset {
-    _gauss_int32(false, null),
-    _gauss_int64(true, null),
-    _log_norm_int32(false, null),
-    _log_norm_int64(true, null),
-    _wiki_ts_200M_uint64(true, new boolean[]{false, false}),
-    _books_200M_uint32(false, new boolean[]{false, false}),
-    _books_800M_uint64(true, new boolean[]{true, true}),
-    _osm_cellids_800M_uint64(true, new boolean[]{true, false}),
-    _fb_200M_uint64(true, new boolean[]{true, false});
+    _gauss_int32(Source.GAUSSIAN, false, false, false),
+    _gauss_int64(Source.GAUSSIAN, true, false, false),
+    _log_norm_int32(Source.LOGNORMAL, false, false, false),
+    _log_norm_int64(Source.LOGNORMAL, true, false, false),
+    _wiki_ts_200M_uint64(Source.SOSD, true, false, false),
+    _books_200M_uint32(Source.SOSD, false, false, false),
+    _books_800M_uint64(Source.SOSD, true, true, true),
+    _osm_cellids_800M_uint64(Source.SOSD, true, true, false),
+    _fb_200M_uint64(Source.SOSD, true, true, false);
+
+    public enum Source {GAUSSIAN, LOGNORMAL, SOSD}
+
+    public final Source source;
 
     public final boolean isLong;
+    public final boolean needShift;
+    public final boolean needPlusOne;
+
     public final boolean isSOSD;
     public final boolean isGaussian;
     public final boolean isLognormal;
 
-    public final boolean needShift;
-    public final boolean needPlusOne;
-
-    Keyset(boolean isLong, boolean[] flags) {
+    Keyset(Source source, boolean isLong, boolean needShift, boolean needPlusOne) {
+        this.source = source;
         this.isLong = isLong;
-        this.isSOSD = (flags != null);
-        this.isGaussian = (name().equals("_gauss_int32") || name().equals("_gauss_int64"));
-        this.isLognormal = (name().equals("_log_norm_int32") || name().equals("_log_norm_int64"));
-        if (isSOSD) {
-            this.needShift = flags[0];
-            this.needPlusOne = flags[1];
-        } else {
-            this.needShift = false;
-            this.needPlusOne = false;
+        this.needShift = needShift;
+        this.needPlusOne = needPlusOne;
+        this.isSOSD = source == Source.SOSD;
+        this.isGaussian = source == Source.GAUSSIAN;
+        this.isLognormal = source == Source.LOGNORMAL;
+    }
+
+    public String fileName() {
+        if (!isSOSD) {
+            throw new IllegalStateException("keyset " + this + " is synthetic and has no data file");
         }
+        return name().substring(1);
     }
 }

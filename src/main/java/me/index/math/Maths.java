@@ -3,8 +3,6 @@ package me.index.math;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
-import java.util.Random;
-import java.util.function.Function;
 
 public final class Maths {
     private Maths() {
@@ -13,8 +11,9 @@ public final class Maths {
     public static final Int128 ZERO = new Int128(0, 0);
     public static final Int128 ONE = new Int128(0, 1);
 
-    public static final Int128 TWO64 = new Int128(0, -1);
-    public static final Int128 NEG_TWO64 = new Int128(-1, 1);
+    public static final Int128 TWO64 = new Int128(1, 0);
+    public static final Int128 NEG_TWO64 = new Int128(-1, 0);
+    public static final Int128 U64_MAX = new Int128(0, -1);
 
     public static final Frac128 F_ZERO = new Frac128(ZERO, ONE);
     public static final Frac128 INF_NEG = new Frac128(NEG_TWO64, ONE);
@@ -29,11 +28,11 @@ public final class Maths {
     }
 
     public static boolean greatZero(Int128 o) {
-        return o.hi() > 0 || o.hi() == 0 && o.lo() > 0;
+        return o.hi() > 0 || o.hi() == 0 && o.lo() != 0;
     }
 
     public static boolean greatOrEqZero(Int128 o) {
-        return o.hi() > 0 || o.hi() == 0 && o.lo() >= 0;
+        return o.hi() >= 0;
     }
 
     public static boolean lessOrEqZero(Int128 o) {
@@ -95,7 +94,7 @@ public final class Maths {
         if (y < 0) {
             y = -y;
         }
-        Int128 r = new Int128(Math.unsignedMultiplyHigh(x.lo(), y), x.lo() * y);
+        Int128 r = new Int128(Math.unsignedMultiplyHigh(x.lo(), y) + x.hi() * y, x.lo() * y);
         return (sign) ? neg(r) : r;
     }
 
@@ -105,7 +104,9 @@ public final class Maths {
             x = neg(x);
         if (lessZero(y))
             y = neg(y);
-        Int128 r = new Int128(Math.unsignedMultiplyHigh(x.lo(), y.lo()), x.lo() * y.lo());
+        Int128 r = new Int128(
+                Math.unsignedMultiplyHigh(x.lo(), y.lo()) + x.hi() * y.lo() + x.lo() * y.hi(),
+                x.lo() * y.lo());
         return (sign) ? neg(r) : r;
     }
 
@@ -148,73 +149,5 @@ public final class Maths {
 
     public static int predict(double[] cf, long key) {
         return Math.max((int) (cf[0] * key + cf[1]), 0);
-    }
-
-    public static double[][] mul(double[][] a, double[][] b) {
-        double[][] r = new double[a.length][b[0].length];
-        for (int i = 0; i < a.length; i++)
-            for (int j = 0; j < b[0].length; j++)
-                for (int k = 0; k < a[0].length; k++)
-                    r[i][j] += a[i][k] * b[k][j];
-        return r;
-    }
-
-    public static double[][] tp(double[][] a) {
-        double[][] r = new double[a[0].length][a.length];
-        for (int i = 0; i < a.length; i++)
-            for (int j = 0; j < a[0].length; j++)
-                r[j][i] = a[i][j];
-        return r;
-    }
-
-    public static double[][] sum(double[][] a, double[][] b) {
-        double[][] r = new double[a.length][a[0].length];
-        for (int i = 0; i < a.length; i++)
-            for (int j = 0; j < a[0].length; j++)
-                r[i][j] = a[i][j] + b[i][j];
-        return r;
-    }
-
-    public static double[][] sub(double[][] a, double[][] b) {
-        double[][] r = new double[a.length][a[0].length];
-        for (int i = 0; i < a.length; i++)
-            for (int j = 0; j < a[0].length; j++)
-                r[i][j] = a[i][j] - b[i][j];
-        return r;
-    }
-
-    public static double[][] dot(double[][] a, double[][] b) {
-        double[][] r = new double[a.length][a[0].length];
-        for (int i = 0; i < a.length; i++)
-            for (int j = 0; j < a[0].length; j++)
-                r[i][j] = a[i][j] * b[i][j];
-        return r;
-    }
-
-    public static double[][] mul(double[][] a, double s) {
-        double[][] r = new double[a.length][a[0].length];
-        for (int i = 0; i < a.length; i++)
-            for (int j = 0; j < a[0].length; j++)
-                r[i][j] = a[i][j] * s;
-        return r;
-    }
-
-    public static double[][] apply(double[][] a, Function<Double, Double> f) {
-        double[][] r = new double[a.length][a[0].length];
-        for (int i = 0; i < a.length; i++)
-            for (int j = 0; j < a[0].length; j++)
-                r[i][j] = f.apply(a[i][j]);
-        return r;
-    }
-
-    public static int zipf(int n, Random rnd) {
-        for (int it = 0; it < 1000; it++) {
-            double x = Math.exp(rnd.nextDouble() * Math.log(n + 1));
-            int k = (int) Math.ceil(x);
-            if (k < 1 || k > n) continue;
-            double accept = Math.pow(k / x, 1.0);
-            if (rnd.nextDouble() < accept) return k - 1;
-        }
-        return 0;
     }
 }

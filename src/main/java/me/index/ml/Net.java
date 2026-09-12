@@ -1,69 +1,128 @@
 package me.index.ml;
 
-import me.index.math.Pair;
-
+import java.util.Arrays;
 import java.util.Random;
 
-import static me.index.math.Maths.*;
-
 public class Net {
-    private final double[][][] W;
-    private final double[][][] B;
     private final int[] sz;
     private final double lr;
-    private final int batchsize;
+    private final int batchSize;
     private final Random rnd;
 
-    public Net(double learningRate, int batchsize, Random rnd) {
-        this.sz = new int[]{1, 4, 4, 1};
+    private final double[][][] w;
+    private final double[][] b;
+
+    private final double[][] a;
+    private final double[][] z;
+    private final double[][] delta;
+    private final double[][][] dw;
+    private final double[][] db;
+    private int[] perm = new int[0];
+
+    public Net(int[] layerSizes, double learningRate, int batchSize, Random rnd) {
+        if (layerSizes.length < 2) {
+            throw new IllegalArgumentException("need at least an input and an output layer, got "
+                    + Arrays.toString(layerSizes));
+        }
+        if (layerSizes[0] != 1 || layerSizes[layerSizes.length - 1] != 1) {
+            throw new IllegalArgumentException("input and output layers must have size 1, got "
+                    + Arrays.toString(layerSizes));
+        }
+        for (int s : layerSizes) {
+            if (s <= 0) {
+                throw new IllegalArgumentException("layer sizes must be positive, got "
+                        + Arrays.toString(layerSizes));
+            }
+        }
+        if (!(learningRate > 0) || !Double.isFinite(learningRate)) {
+            throw new IllegalArgumentException("learningRate must be finite and positive, got " + learningRate);
+        }
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("batchSize must be positive, got " + batchSize);
+        }
+
+        this.sz = layerSizes.clone();
         this.lr = learningRate;
-        this.batchsize = batchsize;
+        this.batchSize = batchSize;
         this.rnd = rnd;
 
-        W = new double[sz.length - 1][][];
-        B = new double[sz.length - 1][][];
+        int layers = sz.length - 1;
+        w = new double[layers][][];
+        b = new double[layers][];
+        dw = new double[layers][][];
+        db = new double[layers][];
+        z = new double[layers][];
+        delta = new double[layers][];
+        a = new double[sz.length][];
 
-        for (int l = 0; l < sz.length - 1; l++) {
-            W[l] = new double[sz[l + 1]][sz[l]];
+        a[0] = new double[sz[0]];
+        for (int l = 0; l < layers; l++) {
+            w[l] = new double[sz[l + 1]][sz[l]];
             for (int i = 0; i < sz[l + 1]; i++)
                 for (int j = 0; j < sz[l]; j++)
-                    W[l][i][j] = rnd.nextGaussian() * Math.sqrt(2.0 / sz[l]);
+                    w[l][i][j] = rnd.nextGaussian() * Math.sqrt(2.0 / sz[l]);
 
-            B[l] = new double[sz[l + 1]][1];
-            for (int i = 0; i < sz[l + 1]; i++)
-                for (int j = 0; j < 1; j++)
-                    B[l][i][j] = 0.3;
+            b[l] = new double[sz[l + 1]];
+            if (l < layers - 1) {
+                Arrays.fill(b[l], 0.3);
+            }
+
+            dw[l] = new double[sz[l + 1]][sz[l]];
+            db[l] = new double[sz[l + 1]];
+            z[l] = new double[sz[l + 1]];
+            delta[l] = new double[sz[l + 1]];
+            a[l + 1] = new double[sz[l + 1]];
         }
-
-        B[sz.length - 1 - 1] = new double[sz[sz.length - 1]][1];
     }
 
-    private Pair<double[][][], double[][][]> forward(double[][] x) {
-        double[][][] z = new double[sz.length - 1][][];
-        double[][][] a = new double[sz.length][][];
-        a[0] = x;
-        for (int l = 0; l < sz.length - 1; l++) {
-            z[l] = sum(mul(W[l], a[l]), B[l]);
-            a[l + 1] = (l < sz.length - 2)
-                    ? apply(z[l], (t) -> (Math.max(0.0, t)))
-                    : z[l];
+    private void forward(double x) {
+        a[0][0] = x;
+        int last = sz.length - 2;
+        for (int l = 0; l <= last; l++) {
+            double[][] wl = w[l];
+            double[] al = a[l];
+            double[] zl = z[l];
+            double[] next = a[l + 1];
+            for (int i = 0; i < zl.length; i++) {
+                double[] row = wl[i];
+                double acc = 0.0;
+                for (int j = 0; j < row.length; j++) {
+                    acc += row[j] * al[j];
+                }
+                double v = acc + b[l][i];
+                zl[i] = v;
+                next[i] = (l < last) ? Math.max(0.0, v) : v;
+            }
         }
-        return new Pair<>(z, a);
     }
 
     public double predict(double x) {
-        return forward(new double[][]{{x}}).second[sz.length - 1][0][0];
+        forward(x);
+        return a[sz.length - 1][0];
     }
 
-    public void train(double[] xs, double[] ys, int epochs) {
+    public double train(double[] xs, double[] ys, int epochs) {
+        if (xs.length != ys.length) {
+            throw new IllegalArgumentException("xs and ys must have equal length, got "
+                    + xs.length + " and " + ys.length);
+        }
+        if (epochs < 0) {
+            throw new IllegalArgumentException("epochs must not be negative, got " + epochs);
+        }
         int n = xs.length;
+        if (n == 0 || epochs == 0) return Double.NaN;
 
-        int[] perm = new int[n];
-        for (int i = 0; i < n; i++)
+        if (perm.length != n) {
+            perm = new int[n];
+        }
+        for (int i = 0; i < n; i++) {
             perm[i] = i;
+        }
+
+        int layers = sz.length - 1;
+        double epochSquaredError = 0.0;
 
         for (int epoch = 0; epoch < epochs; epoch++) {
-
             for (int i = perm.length - 1; i > 0; i--) {
                 int j = rnd.nextInt(i + 1);
                 int t = perm[i];
@@ -71,49 +130,71 @@ public class Net {
                 perm[j] = t;
             }
 
-            for (int start = 0; start < n; start += batchsize) {
-                int end = Math.min(start + batchsize, n);
+            epochSquaredError = 0.0;
 
-                double[] xb = new double[end - start];
-                double[] yb = new double[end - start];
+            for (int start = 0; start < n; start += batchSize) {
+                int end = Math.min(start + batchSize, n);
 
-                for (int i = 0; i < (end - start); i++) {
-                    xb[i] = xs[perm[start + i]];
-                    yb[i] = ys[perm[start + i]];
+                for (int l = 0; l < layers; l++) {
+                    for (double[] row : dw[l]) {
+                        Arrays.fill(row, 0.0);
+                    }
+                    Arrays.fill(db[l], 0.0);
                 }
 
-                double[][][] dW = new double[sz.length - 1][][];
-                double[][][] dB = new double[sz.length - 1][][];
-                for (int l = 0; l < sz.length - 1; l++) {
-                    dW[l] = new double[sz[l + 1]][sz[l]];
-                    dB[l] = new double[sz[l + 1]][1];
-                }
+                for (int s = start; s < end; s++) {
+                    int idx = perm[s];
+                    forward(xs[idx]);
 
-                for (int i = 0; i < xb.length; i++) {
-                    Pair<double[][][], double[][][]> c = forward(new double[][]{{xb[i]}});
-                    double[][][] z = c.first;
-                    double[][][] a = c.second;
+                    double residual = a[sz.length - 1][0] - ys[idx];
+                    epochSquaredError += residual * residual;
+                    delta[layers - 1][0] = residual;
 
-                    double[][][] d = new double[sz.length - 1][][];
-                    d[sz.length - 2] = sub(a[sz.length - 1], new double[][]{{yb[i]}});
-                    for (int l = sz.length - 3; l >= 0; l--) {
-                        d[l] = dot(
-                                mul(tp(W[l + 1]), d[l + 1]),
-                                apply(z[l], (t) -> (t > 0 ? 1.0 : 0.0))
-                        );
+                    for (int l = layers - 2; l >= 0; l--) {
+                        double[] dl = delta[l];
+                        double[] dNext = delta[l + 1];
+                        double[][] wNext = w[l + 1];
+                        double[] zl = z[l];
+                        for (int j = 0; j < dl.length; j++) {
+                            double acc = 0.0;
+                            for (int k = 0; k < dNext.length; k++) {
+                                acc += wNext[k][j] * dNext[k];
+                            }
+                            dl[j] = (zl[j] > 0) ? acc : 0.0;
+                        }
                     }
 
-                    for (int l = 0; l < sz.length - 1; l++) {
-                        dW[l] = sum(dW[l], mul(d[l], tp(a[l])));
-                        dB[l] = sum(dB[l], d[l]);
+                    for (int l = 0; l < layers; l++) {
+                        double[] dl = delta[l];
+                        double[] al = a[l];
+                        double[][] dwl = dw[l];
+                        double[] dbl = db[l];
+                        for (int i = 0; i < dl.length; i++) {
+                            double di = dl[i];
+                            double[] row = dwl[i];
+                            for (int j = 0; j < al.length; j++) {
+                                row[j] += di * al[j];
+                            }
+                            dbl[i] += di;
+                        }
                     }
                 }
 
-                for (int l = 0; l < sz.length - 1; l++) {
-                    W[l] = sub(W[l], mul(dW[l], lr / xb.length));
-                    B[l] = sub(B[l], mul(dB[l], lr / xb.length));
+                double step = lr / (end - start);
+                for (int l = 0; l < layers; l++) {
+                    double[][] wl = w[l];
+                    double[][] dwl = dw[l];
+                    for (int i = 0; i < wl.length; i++) {
+                        double[] wRow = wl[i];
+                        double[] dRow = dwl[i];
+                        for (int j = 0; j < wRow.length; j++) {
+                            wRow[j] -= dRow[j] * step;
+                        }
+                        b[l][i] -= db[l][i] * step;
+                    }
                 }
             }
         }
+        return epochSquaredError / n;
     }
 }

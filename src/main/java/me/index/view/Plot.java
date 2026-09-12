@@ -5,28 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Plot — простая библиотека графиков поверх PDF в духе matplotlib:
- *
- * <pre>
- *   new Plot(900, 600)
- *       .title("Keys -> Positions")
- *       .xlabel("keys")
- *       .ylabel("positions")
- *       .scatter(keys, truePositions, Plot.BLUE, "true_positions")
- *       .scatter(keys, predictedPositions, Plot.RED, "predicted_positions")
- *       .save("out.pdf");
- * </pre>
- */
 public final class Plot {
-
-    // ================================================================
-    //  Цвета — заранее определённая палитра (аналог matplotlib "tab10")
-    // ================================================================
-
-    /**
-     * Неизменяемый RGB-цвет, компоненты в диапазоне 0..1.
-     */
     public record Color(double r, double g, double b) {
     }
 
@@ -38,12 +17,8 @@ public final class Plot {
     public static final Color BROWN = new Color(0.549, 0.337, 0.294);
     public static final Color GRAY = new Color(0.498, 0.498, 0.498);
 
-    /**
-     * Цвета, которые Plot назначает автоматически сериям без явного цвета — по кругу, как в matplotlib.
-     */
     private static final Color[] AUTO_PALETTE = {BLUE, ORANGE, GREEN, RED, PURPLE, BROWN, GRAY};
 
-    // Служебные цвета оформления графика (не для данных):
     private static final Color COLOR_PLOT_BORDER = new Color(0.60, 0.60, 0.60);
     private static final Color COLOR_GRID_LINE = new Color(0.88, 0.88, 0.88);
     private static final Color COLOR_AXIS_LINE = new Color(0.15, 0.15, 0.15);
@@ -52,72 +27,45 @@ public final class Plot {
     private static final Color COLOR_TICK_LABEL = new Color(0.30, 0.30, 0.30);
     private static final Color COLOR_LEGEND_TEXT = new Color(0.15, 0.15, 0.15);
 
-    // ================================================================
-    //  Эталонный размер холста, к которому привязаны величины ниже.
-    //  Реальные величины = эталон * scale (см. computeScale()).
-    // ================================================================
-
     private static final double REFERENCE_WIDTH = 900;
     private static final double REFERENCE_HEIGHT = 600;
 
-    // ---- Типографика ----
     private static final double TITLE_FONT_SIZE = 15;
     private static final double AXIS_LABEL_FONT_SIZE = 11;
     private static final double TICK_LABEL_FONT_SIZE = 9;
     private static final double LEGEND_FONT_SIZE = 9.5;
 
-    /**
-     * Грубая доля font size от верха символа до базовой линии (нет точных метрик шрифта, см. Page.approxTextWidth).
-     */
     private static final double FONT_ASCENT_FRACTION = 0.75;
-    /**
-     * Грубая доля font size, на которую нужно опустить базовую линию, чтобы текст казался вертикально отцентрован.
-     */
     private static final double TEXT_VERTICAL_CENTER_FRACTION = 0.32;
 
-    // ---- Зазоры между смысловыми элементами раскладки ----
-    private static final double EDGE_PADDING = 10; // от края страницы до всего остального
-    private static final double TITLE_TO_PLOT_GAP = 10; // между заголовком и верхней границей графика
-    private static final double AXIS_LABEL_TO_TICKS_GAP = 8;  // между подписью оси и числами делений
-    private static final double TICK_LABEL_TO_AXIS_GAP = 6;  // между числом деления и линией оси
+    private static final double EDGE_PADDING = 10;
+    private static final double TITLE_TO_PLOT_GAP = 10;
+    private static final double AXIS_LABEL_TO_TICKS_GAP = 8;
+    private static final double TICK_LABEL_TO_AXIS_GAP = 6;
 
-    // ---- Линии/точки по умолчанию ----
     private static final double DEFAULT_LINE_WIDTH = 1.7;
     private static final double DEFAULT_MARKER_RADIUS = 2.6;
     private static final double AXIS_LINE_WIDTH = 1.2;
     private static final double GRID_LINE_WIDTH = 0.6;
     private static final double PLOT_BORDER_WIDTH = 0.8;
 
-    // ---- Легенда ----
     private static final double LEGEND_SWATCH_SIZE = 11;
     private static final double LEGEND_ROW_HEIGHT = 18;
-    private static final double LEGEND_PLOT_TO_SWATCH_GAP = 16; // от правого края графика до цветного квадратика
+    private static final double LEGEND_PLOT_TO_SWATCH_GAP = 16;
     private static final double LEGEND_SWATCH_TO_TEXT_GAP = 5;
-    private static final double LEGEND_TEXT_RIGHT_PADDING = 10; // запас справа от самого длинного текста легенды
-    private static final double LEGEND_TEXT_VERTICAL_OFFSET_FRACTION = 0.18; // центрирование текста по высоте квадратика
+    private static final double LEGEND_TEXT_RIGHT_PADDING = 10;
+    private static final double LEGEND_TEXT_VERTICAL_OFFSET_FRACTION = 0.18;
 
-    // ---- Оси / сетка ----
     private static final int DEFAULT_X_TICKS = 6;
     private static final int DEFAULT_Y_TICKS = 5;
 
-    // Пороги для выбора числа знаков после запятой у чисел на осях.
-    private static final double TICK_DECIMALS_ZERO_THRESHOLD = 20; // диапазон >= 20 -> без знаков после запятой
-    private static final double TICK_DECIMALS_ONE_THRESHOLD = 2;  // диапазон >= 2  -> один знак после запятой
+    private static final double TICK_DECIMALS_ZERO_THRESHOLD = 20;
+    private static final double TICK_DECIMALS_ONE_THRESHOLD = 2;
 
-    /**
-     * Запас по краям диапазона данных, если xlim/ylim не заданы явно — доля от размаха данных.
-     */
     private static final double AUTO_RANGE_PADDING_FRACTION = 0.08;
-
-    // ================================================================
-    //  Состояние конкретного графика
-    // ================================================================
 
     private enum Kind {LINE, SCATTER}
 
-    /**
-     * @param size для LINE - толщина линии, для SCATTER - радиус точки (в "эталонных" pt)
-     */
     private record Layer(Kind kind, double[] x, double[] y, Color color, String label, double size) {
     }
 
@@ -130,7 +78,7 @@ public final class Plot {
     private String xLabel = "";
     private String yLabel = "";
     private boolean showGrid = true;
-    private Boolean legendOverride = null; // null = показывать автоматически, если есть подписанные серии
+    private Boolean legendOverride = null;
     private boolean squareMarkers = false;
     private int xTicks = DEFAULT_X_TICKS;
     private int yTicks = DEFAULT_Y_TICKS;
@@ -139,10 +87,8 @@ public final class Plot {
 
     private final List<Layer> layers = new ArrayList<>();
     private int autoColorIndex = 0;
+    private boolean rendered = false;
 
-    /**
-     * Создаёт новый график заданного размера в points (1pt = 1/72 дюйма).
-     */
     public Plot(double width, double height) {
         this.width = width;
         this.height = height;
@@ -150,8 +96,6 @@ public final class Plot {
         this.page = doc.addPage(width, height);
         this.scale = Math.sqrt((width / REFERENCE_WIDTH) * (height / REFERENCE_HEIGHT));
     }
-
-    // ------------------------- Настройки графика -------------------------
 
     public Plot title(String text) {
         this.title = text;
@@ -179,13 +123,20 @@ public final class Plot {
     }
 
     public Plot xTicks(int count) {
-        this.xTicks = count;
+        this.xTicks = requirePositive(count, "xTicks");
         return this;
     }
 
     public Plot yTicks(int count) {
-        this.yTicks = count;
+        this.yTicks = requirePositive(count, "yTicks");
         return this;
+    }
+
+    private static int requirePositive(int count, String name) {
+        if (count < 1) {
+            throw new IllegalArgumentException(name + " must be at least 1, got " + count);
+        }
+        return count;
     }
 
     public Plot xlim(double min, double max) {
@@ -200,17 +151,10 @@ public final class Plot {
         return this;
     }
 
-    /**
-     * Квадратные маркеры вместо круглых для scatter(). Круг рисуется 4 кривыми
-     * Безье и стоит на порядок дороже квадрата (1 оператор). На десятках/сотнях
-     * тысяч точек включайте это — файл выйдет в разы меньше и быстрее соберётся.
-     */
     public Plot squareMarkers(boolean use) {
         this.squareMarkers = use;
         return this;
     }
-
-    // ------------------------- line(...): ломаная по точкам -------------------------
 
     public Plot line(double[] x, double[] y, Color color, String label, double lineWidth) {
         layers.add(new Layer(Kind.LINE, x, y, color, label, lineWidth));
@@ -236,8 +180,6 @@ public final class Plot {
     public Plot line(long[] x, long[] y, String label) {
         return line(toDouble(x), toDouble(y), label);
     }
-
-    // ------------------------- scatter(...): точки -------------------------
 
     public Plot scatter(double[] x, double[] y, Color color, String label, double pointRadius) {
         layers.add(new Layer(Kind.SCATTER, x, y, color, label, pointRadius));
@@ -276,16 +218,13 @@ public final class Plot {
         return r;
     }
 
-    // ------------------------- Сохранение -------------------------
-
     public void save(String path) throws IOException {
-        render();
+        if (!rendered) {
+            render();
+            rendered = true;
+        }
         doc.save(path);
     }
-
-    // ================================================================
-    //  Рендеринг
-    // ================================================================
 
     private boolean hasLegend() {
         if (legendOverride != null) return legendOverride;
@@ -408,26 +347,36 @@ public final class Plot {
     }
 
     private void drawLine(Layer l, double px, double py, double pw, double ph, double[] xr, double[] yr) {
-        page.save().strokeColor(l.color.r, l.color.g, l.color.b).lineWidth(l.size * scale);
-        for (int i = 0; i < l.x.length; i++) {
+        page.save().clipRect(px, py, pw, ph)
+                .strokeColor(l.color.r, l.color.g, l.color.b).lineWidth(l.size * scale);
+        boolean started = false;
+        for (int i = 0; i < l.x.length && i < l.y.length; i++) {
+            if (!Double.isFinite(l.x[i]) || !Double.isFinite(l.y[i])) {
+                started = false;
+                continue;
+            }
             double x = px + (l.x[i] - xr[0]) / (xr[1] - xr[0]) * pw;
             double y = py + (l.y[i] - yr[0]) / (yr[1] - yr[0]) * ph;
-            if (i == 0) page.moveTo(x, y);
-            else page.lineTo(x, y);
+            if (!started) {
+                page.moveTo(x, y);
+                started = true;
+            } else {
+                page.lineTo(x, y);
+            }
         }
         page.stroke().restore();
     }
 
     private void drawScatter(Layer l, double px, double py, double pw, double ph, double[] xr, double[] yr) {
         double radius = l.size * scale;
-        page.save().fillColor(l.color.r, l.color.g, l.color.b);
-        for (int i = 0; i < l.x.length; i++) {
+        page.save().clipRect(px, py, pw, ph).fillColor(l.color.r, l.color.g, l.color.b);
+        for (int i = 0; i < l.x.length && i < l.y.length; i++) {
+            if (!Double.isFinite(l.x[i]) || !Double.isFinite(l.y[i])) continue;
             double x = px + (l.x[i] - xr[0]) / (xr[1] - xr[0]) * pw;
             double y = py + (l.y[i] - yr[0]) / (yr[1] - yr[0]) * ph;
             if (squareMarkers) page.square(x, y, radius);
             else page.circle(x, y, radius);
         }
-        // одна заливка на всю серию сразу - в разы компактнее и быстрее, чем fill() на каждую точку
         page.fill().restore();
     }
 
@@ -473,24 +422,38 @@ public final class Plot {
         }
     }
 
-    // ------------------------- Диапазоны и форматирование чисел -------------------------
-
     private double[] resolveRange(boolean xAxis, double lo, double hi) {
-        if (!Double.isNaN(lo) && !Double.isNaN(hi)) return new double[]{lo, hi};
         double mn = Double.POSITIVE_INFINITY, mx = Double.NEGATIVE_INFINITY;
-        for (Layer l : layers) {
-            double[] a = xAxis ? l.x : l.y;
-            for (double v : a) {
-                mn = Math.min(mn, v);
-                mx = Math.max(mx, v);
+        if (Double.isNaN(lo) || Double.isNaN(hi)) {
+            for (Layer l : layers) {
+                for (double v : xAxis ? l.x : l.y) {
+                    if (!Double.isFinite(v)) continue;
+                    mn = Math.min(mn, v);
+                    mx = Math.max(mx, v);
+                }
+            }
+            if (mn > mx) {
+                mn = 0;
+                mx = 1;
+            }
+            if (mn == mx) {
+                mn -= 1;
+                mx += 1;
             }
         }
-        if (mn == mx) {
-            mn -= 1;
-            mx += 1;
-        }
         double pad = (mx - mn) * AUTO_RANGE_PADDING_FRACTION;
-        return new double[]{Double.isNaN(lo) ? mn - pad : lo, Double.isNaN(hi) ? mx + pad : hi};
+        double resLo = Double.isNaN(lo) ? mn - pad : lo;
+        double resHi = Double.isNaN(hi) ? mx + pad : hi;
+        if (!Double.isFinite(resLo) || !Double.isFinite(resHi)) {
+            throw new IllegalStateException("axis limits must be finite, got [" + resLo + ", " + resHi + "]");
+        }
+        if (resLo == resHi) {
+            resLo -= 1;
+            resHi += 1;
+        } else if (resLo > resHi) {
+            throw new IllegalStateException("axis limits are inverted: [" + resLo + ", " + resHi + "]");
+        }
+        return new double[]{resLo, resHi};
     }
 
     private static String tickLabel(double value, double range) {

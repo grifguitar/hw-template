@@ -139,18 +139,45 @@ public final class Page {
     }
 
     public static String fmt(double v) {
-        if (v == Math.rint(v) && !Double.isInfinite(v)) return String.valueOf((long) v);
+        if (!Double.isFinite(v)) {
+            throw new IllegalArgumentException("PDF numbers must be finite, got " + v);
+        }
+        if (v == Math.rint(v)) return String.valueOf((long) v);
         return String.format(Locale.US, "%.2f", v);
     }
 
+    private static final char UNASSIGNED = '\0';
+
+    private static final char[] WIN_ANSI_80_TO_9F = {
+            '€', UNASSIGNED, '‚', 'ƒ', '„', '…', '†', '‡',
+            'ˆ', '‰', 'Š', '‹', 'Œ', UNASSIGNED, 'Ž', UNASSIGNED,
+            UNASSIGNED, '‘', '’', '“', '”', '•', '–', '—',
+            '˜', '™', 'š', '›', 'œ', UNASSIGNED, 'ž', 'Ÿ'
+    };
+
+    private static final int WIN_ANSI_FALLBACK = '?';
+
     public static String escape(String s) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(s.length() + 8);
         for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '(' || c == ')' || c == '\\') sb.append('\\').append(c);
-            else if (c > 255) sb.append('?');
-            else sb.append(c);
+            int code = toWinAnsi(s.charAt(i));
+            if (code == '(' || code == ')' || code == '\\') {
+                sb.append('\\').append((char) code);
+            } else if (code >= 0x20 && code < 0x7F) {
+                sb.append((char) code);
+            } else {
+                sb.append('\\').append(String.format(Locale.US, "%03o", code));
+            }
         }
         return sb.toString();
+    }
+
+    private static int toWinAnsi(char c) {
+        if (c >= 0x20 && c < 0x7F) return c;
+        if (c >= 0xA0 && c <= 0xFF) return c;
+        for (int i = 0; i < WIN_ANSI_80_TO_9F.length; i++) {
+            if (WIN_ANSI_80_TO_9F[i] != UNASSIGNED && WIN_ANSI_80_TO_9F[i] == c) return 0x80 + i;
+        }
+        return WIN_ANSI_FALLBACK;
     }
 }

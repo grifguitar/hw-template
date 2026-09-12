@@ -49,6 +49,9 @@ public final class Document {
     }
 
     public void save(String path) throws IOException {
+        if (pages.isEmpty()) {
+            throw new IllegalStateException("cannot save a document without pages");
+        }
         try (CntOutputStream out = new CntOutputStream(new BufferedOutputStream(new FileOutputStream(path)))) {
             out.write("%PDF-1.4\n");
 
@@ -121,7 +124,6 @@ public final class Document {
             out.write("trailer\n<< /Size " + (totalObjects + 1) + " /Root " + CATALOG + " 0 R >>\nstartxref\n"
                     + xrefStart + "\n%%EOF");
             out.flush();
-
         }
     }
 }
