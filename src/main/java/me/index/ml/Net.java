@@ -2,11 +2,13 @@ package me.index.ml;
 
 import java.util.Arrays;
 import java.util.Random;
+import java.util.function.DoubleBinaryOperator;
 
-public class Net {
+public abstract class Net implements Model {
     private final int[] sz;
     private final double lr;
     private final int batchSize;
+    private final Loss loss;
     private final Random rnd;
 
     private final double[][][] w;
@@ -19,7 +21,8 @@ public class Net {
     private final double[][] db;
     private int[] perm = new int[0];
 
-    public Net(int[] layerSizes, double learningRate, int batchSize, Random rnd) {
+    protected Net(int[] layerSizes, double learningRate, int batchSize, Loss loss, Random rnd,
+                  Init init, double hiddenBias) {
         if (layerSizes.length < 2) {
             throw new IllegalArgumentException("need at least an input and an output layer, got "
                     + Arrays.toString(layerSizes));
@@ -40,10 +43,23 @@ public class Net {
         if (batchSize <= 0) {
             throw new IllegalArgumentException("batchSize must be positive, got " + batchSize);
         }
+        if (loss == null) {
+            throw new IllegalArgumentException("loss must not be null");
+        }
+        if (rnd == null) {
+            throw new IllegalArgumentException("rnd must not be null");
+        }
+        if (init == null) {
+            throw new IllegalArgumentException("init must not be null");
+        }
+        if (!Double.isFinite(hiddenBias)) {
+            throw new IllegalArgumentException("hiddenBias must be finite, got " + hiddenBias);
+        }
 
         this.sz = layerSizes.clone();
         this.lr = learningRate;
         this.batchSize = batchSize;
+        this.loss = loss;
         this.rnd = rnd;
 
         int layers = sz.length - 1;
@@ -57,14 +73,15 @@ public class Net {
 
         a[0] = new double[sz[0]];
         for (int l = 0; l < layers; l++) {
+            double scale = init.scale(sz[l], sz[l + 1]);
             w[l] = new double[sz[l + 1]][sz[l]];
             for (int i = 0; i < sz[l + 1]; i++)
                 for (int j = 0; j < sz[l]; j++)
-                    w[l][i][j] = rnd.nextGaussian() * Math.sqrt(2.0 / sz[l]);
+                    w[l][i][j] = rnd.nextGaussian() * scale;
 
             b[l] = new double[sz[l + 1]];
             if (l < layers - 1) {
-                Arrays.fill(b[l], 0.3);
+                Arrays.fill(b[l], hiddenBias);
             }
 
             dw[l] = new double[sz[l + 1]][sz[l]];
@@ -75,13 +92,28 @@ public class Net {
         }
     }
 
+    protected abstract double activate(double z);
+
+    protected abstract double derivative(double z, double activated);
+
+    protected abstract String activationId();
+
+    public final String id() {
+        return activationId() + "/" + loss.id();
+    }
+
+    public final int[] layerSizes() {
+        return sz.clone();
+    }
+
     private void forward(double x) {
         a[0][0] = x;
         int last = sz.length - 2;
-        for (int l = 0; l <= last; l++) {
+        for (int l = 0; l < last; l++) {
             double[][] wl = w[l];
             double[] al = a[l];
             double[] zl = z[l];
+            double[] bl = b[l];
             double[] next = a[l + 1];
             for (int i = 0; i < zl.length; i++) {
                 double[] row = wl[i];
@@ -89,19 +121,36 @@ public class Net {
                 for (int j = 0; j < row.length; j++) {
                     acc += row[j] * al[j];
                 }
-                double v = acc + b[l][i];
+                double v = acc + bl[i];
                 zl[i] = v;
-                next[i] = (l < last) ? Math.max(0.0, v) : v;
+                next[i] = activate(v);
             }
+        }
+        double[][] wo = w[last];
+        double[] ao = a[last];
+        double[] zo = z[last];
+        double[] bo = b[last];
+        double[] out = a[last + 1];
+        for (int i = 0; i < zo.length; i++) {
+            double[] row = wo[i];
+            double acc = 0.0;
+            for (int j = 0; j < row.length; j++) {
+                acc += row[j] * ao[j];
+            }
+            double v = acc + bo[i];
+            zo[i] = v;
+            out[i] = v;
         }
     }
 
-    public double predict(double x) {
+    @Override
+    public final double predict(double x) {
         forward(x);
         return a[sz.length - 1][0];
     }
 
-    public double train(double[] xs, double[] ys, int epochs) {
+    @Override
+    public final double train(double[] xs, double[] ys, int epochs) {
         if (xs.length != ys.length) {
             throw new IllegalArgumentException("xs and ys must have equal length, got "
                     + xs.length + " and " + ys.length);
@@ -146,21 +195,23 @@ public class Net {
                     int idx = perm[s];
                     forward(xs[idx]);
 
-                    double residual = a[sz.length - 1][0] - ys[idx];
+                    double predicted = a[sz.length - 1][0];
+                    double residual = predicted - ys[idx];
                     epochSquaredError += residual * residual;
-                    delta[layers - 1][0] = residual;
+                    delta[layers - 1][0] = loss.gradient(predicted, ys[idx]);
 
                     for (int l = layers - 2; l >= 0; l--) {
                         double[] dl = delta[l];
                         double[] dNext = delta[l + 1];
                         double[][] wNext = w[l + 1];
                         double[] zl = z[l];
+                        double[] activated = a[l + 1];
                         for (int j = 0; j < dl.length; j++) {
                             double acc = 0.0;
                             for (int k = 0; k < dNext.length; k++) {
                                 acc += wNext[k][j] * dNext[k];
                             }
-                            dl[j] = (zl[j] > 0) ? acc : 0.0;
+                            dl[j] = acc * derivative(zl[j], activated[j]);
                         }
                     }
 
@@ -196,5 +247,29 @@ public class Net {
             }
         }
         return epochSquaredError / n;
+    }
+
+    public final double meanSquaredError(double[] xs, double[] ys) {
+        return mean(xs, ys, (predicted, target) -> {
+            double e = predicted - target;
+            return e * e;
+        });
+    }
+
+    public final double meanLoss(double[] xs, double[] ys) {
+        return mean(xs, ys, loss::value);
+    }
+
+    private double mean(double[] xs, double[] ys, DoubleBinaryOperator perSample) {
+        if (xs.length != ys.length) {
+            throw new IllegalArgumentException("xs and ys must have equal length, got "
+                    + xs.length + " and " + ys.length);
+        }
+        if (xs.length == 0) return Double.NaN;
+        double sum = 0.0;
+        for (int i = 0; i < xs.length; i++) {
+            sum += perSample.applyAsDouble(predict(xs[i]), ys[i]);
+        }
+        return sum / xs.length;
     }
 }

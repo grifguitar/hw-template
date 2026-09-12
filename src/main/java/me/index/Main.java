@@ -1,10 +1,12 @@
 package me.index;
 
+import me.index.config.Training;
 import me.index.ml.Net;
 import me.index.view.Plot;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 
@@ -49,20 +51,20 @@ public class Main {
             ys[i] = (double) i / (n - 1);
         }
 
-        Net net = new Net(
-                context.config.training().layerSizes(),
-                context.config.training().learningRate(),
-                context.config.training().batchSize(),
-                new Random(context.config.training().seed())
-        );
+        Training training = context.config.training();
+        Net net = training.newNet(new Random(training.seed()));
+        System.out.println("model: " + net.id() + " layers=" + Arrays.toString(net.layerSizes()));
         long startedAt = System.nanoTime();
-        double mse = net.train(xs, ys, context.config.training().epochs());
-        System.out.printf(Locale.US, "trained %d epoch(s) in %.1f s, final MSE %.3e%n",
-                context.config.training().epochs(), (System.nanoTime() - startedAt) / 1e9, mse);
-        if (!Double.isFinite(mse)) {
-            throw new IllegalStateException("training diverged (MSE = " + mse
-                    + "); lower train.learning.rate or shrink net.hidden.layers");
+        double running = net.train(xs, ys, training.epochs());
+        double elapsed = (System.nanoTime() - startedAt) / 1e9;
+        if (!Double.isFinite(running)) {
+            throw new IllegalStateException("training diverged (MSE = " + running
+                    + "); lower train.learning.rate, shrink net.hidden.layers, or — if train.loss is"
+                    + " not _squared — revisit train.loss.parameter");
         }
+        double mse = net.meanSquaredError(xs, ys);
+        System.out.printf(Locale.US, "trained %d epoch(s) in %.1f s, final MSE %.3e (%s loss %.3e)%n",
+                training.epochs(), elapsed, mse, net.id(), net.meanLoss(xs, ys));
 
         long maxErr = 0;
         long[] truePos = new long[n];
@@ -81,8 +83,8 @@ public class Main {
                 .squareMarkers(n >= 20_000)
                 .scatter(keys, truePos, Plot.BLUE, "true_positions", 0.1)
                 .scatter(keys, predPos, Plot.RED, "predicted_positions", 0.1)
-                .save(context.config.training().plotPath());
-        System.out.println("plot written to " + Path.of(context.config.training().plotPath()).toAbsolutePath());
+                .save(training.plotPath());
+        System.out.println("plot written to " + Path.of(training.plotPath()).toAbsolutePath());
     }
 
     static String preview(long[] keys) {

@@ -1,6 +1,9 @@
 package me.index.config;
 
+import me.index.ml.Net;
+
 import java.util.List;
+import java.util.Random;
 
 public record Training(
         long seed,
@@ -8,17 +11,28 @@ public record Training(
         int batchSize,
         int epochs,
         List<Integer> hiddenLayers,
+        Activation activation,
+        LossFunction lossFunction,
+        double lossParameter,
         String plotPath
 ) {
     public static final long DEFAULT_SEED = 42L;
-    public static final double DEFAULT_LEARNING_RATE = 0.05;
     public static final int DEFAULT_BATCH_SIZE = 32;
     public static final int DEFAULT_EPOCHS = 100;
     public static final List<Integer> DEFAULT_HIDDEN_LAYERS = List.of(4, 4);
+    public static final Activation DEFAULT_ACTIVATION = Activation._relu;
+    public static final LossFunction DEFAULT_LOSS = LossFunction._squared;
     public static final String DEFAULT_PLOT_PATH = "plot.pdf";
 
     public Training {
         hiddenLayers = List.copyOf(hiddenLayers);
+        if (activation == null) throw new IllegalArgumentException("activation must not be null");
+        if (lossFunction == null) throw new IllegalArgumentException("lossFunction must not be null");
+        lossFunction.create(lossParameter);
+    }
+
+    public Net newNet(Random rnd) {
+        return activation.create(layerSizes(), learningRate, batchSize, lossFunction.create(lossParameter), rnd);
     }
 
     public int[] layerSizes() {

@@ -1,8 +1,10 @@
 package me.index;
 
+import me.index.config.Activation;
 import me.index.config.Config;
 import me.index.config.DataSize;
 import me.index.config.Keyset;
+import me.index.config.LossFunction;
 import me.index.config.MaxErr;
 import me.index.config.Training;
 import me.index.config.Workload;
@@ -25,7 +27,7 @@ class ContextTest {
     private static Config config(Keyset keyset, DataSize size) {
         return new Config(keyset, Workload._uniform, WorkloadPerm._false, WorkloadFactor._read_only,
                 size, MaxErr._0,
-                new Training(42L, 0.05, 32, 1, List.of(4), "plot.pdf"));
+                new Training(42L, 0.05, 32, 1, List.of(4), Activation._relu, LossFunction._squared, 2.0, "plot.pdf"));
     }
 
     @Test
@@ -55,7 +57,7 @@ class ContextTest {
     void seedFromConfigDrivesGeneration() throws IOException {
         Config a = config(Keyset._gauss_int64, DataSize._1e4);
         Config b = new Config(a.keyset(), a.workload(), a.workloadPerm(), a.workloadFactor(), a.dataSize(),
-                a.maxErr(), new Training(7L, 0.05, 32, 1, List.of(4), "plot.pdf"));
+                a.maxErr(), new Training(7L, 0.05, 32, 1, List.of(4), Activation._relu, LossFunction._squared, 2.0, "plot.pdf"));
         assertArrayEquals(new Context(a, Path.of("")).keys, new Context(a, Path.of("")).keys);
         assertFalse(java.util.Arrays.equals(new Context(a, Path.of("")).keys, new Context(b, Path.of("")).keys));
     }

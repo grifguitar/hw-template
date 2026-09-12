@@ -60,12 +60,16 @@ public record Config(
     }
 
     private static Training readTraining(Properties p) {
+        LossFunction loss = optional(p, "train.loss", LossFunction.class, Training.DEFAULT_LOSS);
         return new Training(
                 optionalLong(p, "train.seed", Training.DEFAULT_SEED),
-                optionalPositiveDouble(p, "train.learning.rate", Training.DEFAULT_LEARNING_RATE),
+                optionalPositiveDouble(p, "train.learning.rate", loss.defaultLearningRate()),
                 optionalPositiveInt(p, "train.batch.size", Training.DEFAULT_BATCH_SIZE),
                 optionalPositiveInt(p, "train.epochs", Training.DEFAULT_EPOCHS),
                 optionalIntList(p, "net.hidden.layers", Training.DEFAULT_HIDDEN_LAYERS),
+                optional(p, "net.activation", Activation.class, Training.DEFAULT_ACTIVATION),
+                loss,
+                optionalPositiveDouble(p, "train.loss.parameter", loss.defaultParameter()),
                 optionalString(p, "plot.path", Training.DEFAULT_PLOT_PATH)
         );
     }

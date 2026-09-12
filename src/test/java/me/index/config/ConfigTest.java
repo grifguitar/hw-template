@@ -1,5 +1,7 @@
 package me.index.config;
 
+import me.index.ml.Loss;
+import me.index.ml.loss.SquaredLoss;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -8,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -130,6 +133,71 @@ class ConfigTest {
         Path repoConfig = Path.of("config.properties");
         assertTrue(Files.isReadable(repoConfig), "config.properties must live at the repo root");
         assertNotNull(Config.load(repoConfig));
+    }
+
+    @Test
+    void everyLossGetsItsOwnDefaultParameterAndLearningRate() {
+        for (LossFunction lf : LossFunction.values()) {
+            Properties p = minimal();
+            p.setProperty("train.loss", lf.name());
+            Config c = Config.read(p);
+            assertEquals(lf, c.training().lossFunction());
+            assertEquals(lf.defaultParameter(), c.training().lossParameter(), lf.name());
+            assertEquals(lf.defaultLearningRate(), c.training().learningRate(), lf.name());
+            assertTrue(lf.defaultLearningRate() > 0 && Double.isFinite(lf.defaultLearningRate()), lf.name());
+            assertDoesNotThrow(() -> c.training().newNet(new Random(1)), lf.name());
+        }
+    }
+
+    @Test
+    void lossesThatNeedDifferentRatesActuallyGetThem() {
+        assertTrue(LossFunction._absolute.defaultLearningRate() < LossFunction._squared.defaultLearningRate(),
+                "the absolute loss must step more cautiously than the squared one");
+        assertTrue(LossFunction._huber.defaultLearningRate() > LossFunction._squared.defaultLearningRate(),
+                "a clipped loss must be allowed to step further than the squared one");
+        assertTrue(LossFunction._log_cosh.defaultLearningRate() > LossFunction._squared.defaultLearningRate(),
+                "the other clipped loss must too");
+        assertEquals(LossFunction._squared.defaultLearningRate(), LossFunction._power.defaultLearningRate());
+    }
+
+    @Test
+    void anExplicitLearningRateOverridesThePerLossDefault() {
+        Properties p = minimal();
+        p.setProperty("train.loss", "_huber");
+        p.setProperty("train.learning.rate", "0.001");
+        assertEquals(0.001, Config.read(p).training().learningRate());
+    }
+
+    @Test
+    void robustLossDefaultsDoNotCollapseIntoTheSquaredLoss() {
+        for (LossFunction lf : List.of(LossFunction._huber, LossFunction._log_cosh)) {
+            assertTrue(lf.defaultParameter() < 0.5,
+                    lf + " default parameter " + lf.defaultParameter() + " never reaches the linear branch");
+            Loss robust = lf.create(lf.defaultParameter());
+            Loss squared = new SquaredLoss();
+            assertNotEquals(squared.gradient(0.5, 0.0), robust.gradient(0.5, 0.0), 1e-6, lf.name());
+        }
+        assertTrue(LossFunction._squared.defaultParameter() > 0, "defaults must stay usable as a positive double");
+        assertFalse(LossFunction._squared.usesParameter());
+        assertFalse(LossFunction._absolute.usesParameter());
+        assertTrue(LossFunction._huber.usesParameter());
+    }
+
+    @Test
+    void anUnusableLossParameterIsRejectedWhileReadingTheConfig() {
+        Properties p = minimal();
+        p.setProperty("train.loss", "_power");
+        p.setProperty("train.loss.parameter", "0.5");
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Config.read(p));
+        assertTrue(e.getMessage().contains("p must be finite and at least 1"), e.getMessage());
+    }
+
+    @Test
+    void anExplicitLossParameterOverridesTheDefault() {
+        Properties p = minimal();
+        p.setProperty("train.loss", "_huber");
+        p.setProperty("train.loss.parameter", "0.005");
+        assertEquals(0.005, Config.read(p).training().lossParameter());
     }
 
     @Test
