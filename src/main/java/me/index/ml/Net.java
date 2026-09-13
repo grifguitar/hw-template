@@ -106,6 +106,26 @@ public abstract class Net implements Model {
         return sz.clone();
     }
 
+    public final double[] parameters() {
+        int count = 0;
+        for (int l = 0; l < w.length; l++) {
+            count += w[l].length * sz[l] + b[l].length;
+        }
+        double[] out = new double[count];
+        int k = 0;
+        for (int l = 0; l < w.length; l++) {
+            for (double[] row : w[l]) {
+                for (double v : row) {
+                    out[k++] = v;
+                }
+            }
+            for (double v : b[l]) {
+                out[k++] = v;
+            }
+        }
+        return out;
+    }
+
     private void forward(double x) {
         a[0][0] = x;
         int last = sz.length - 2;

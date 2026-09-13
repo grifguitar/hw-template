@@ -2,6 +2,8 @@
 .DS_Store
 
 target/
+work/
+results/
 
 *.pdf
 
